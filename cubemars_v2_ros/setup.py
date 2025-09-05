@@ -21,10 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             # existing nodes
-            'motor_node = cubemars_v2_ros.motor_node:main',
-            'dual_joystick_position = cubemars_v2_ros.dual_joystick_position:main',
-            # NEW: single combined node (left stick -> ak70, right -> ak80)
-            'dual_joystick_turntable = cubemars_v2_ros.dual_joystick_turntable:main',
+            'motor_node = cubemars_v2_ros.motor_node:main'
         ],
     },
 )

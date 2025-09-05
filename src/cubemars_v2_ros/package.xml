@@ -14,7 +14,7 @@
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
-  <exec_depend>motor_interfaces</exec_depend>
+  <depend>motor_interfaces</depend>
   <exec_depend>sensor_msgs</exec_depend>
 
 

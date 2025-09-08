@@ -253,7 +253,7 @@ class MotorNode(Node):
             ms.torque = tau # torque measured in Nm
             ms.temp = temp  # driver board temp in C
 
-            self.pub_state(ms)
+            self.pub_state.publish(ms)
 
 
 

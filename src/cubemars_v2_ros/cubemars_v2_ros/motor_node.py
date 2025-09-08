@@ -131,11 +131,11 @@ class MotorNode(Node):
         except Exception: pass
 
         # ---- ROS I/O ----
-        self.pub_temp = self.create_publisher(Int32, 'temperature', 10)
-        self.pub_err = self.create_publisher(String, 'error_code', 10)
-        self.pub_state = self.create_publisher(MotorState, 'motor_state',10)
-        self.create_subscription(Float64MultiArray, 'mit_cmd', self.on_cmd, 10)
-        self.create_subscription(String, 'special', self.on_special, 10)
+        self.pub_temp = self.create_publisher(Int32, f'/{self.joint_name}/temperature', 10)
+        self.pub_err = self.create_publisher(String, f'/{self.joint_name}/error_code', 10)
+        self.pub_state = self.create_publisher(MotorState, f'/{self.joint_name}/motor_state', 10)
+        self.create_subscription(Float64MultiArray, f'/{self.joint_name}/mit_cmd', self.on_cmd, 10)
+        self.create_subscription(String, f'/{self.joint_name}/special', self.on_special, 10)
 
         # ---- command / state ----
         self._lock = threading.Lock()

@@ -135,7 +135,7 @@ class MotorNode(Node):
         self.pub_err = self.create_publisher(String, f'/{self.joint_name}/error_code', 10)
         self.pub_state = self.create_publisher(MotorState, f'/{self.joint_name}/motor_state', 10)
         self.create_subscription(Float64MultiArray, f'/{self.joint_name}/mit_cmd', self.on_cmd, 10)
-        self.create_subscription(String, f'/{self.joint_name}/special', self.on_special, 10)
+        self.create_subscription(String, f'/{self.joint_name}/special_cmd', self.on_special, 10)
 
         # ---- command / state ----
         self._lock = threading.Lock()

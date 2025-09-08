@@ -251,7 +251,7 @@ class MotorNode(Node):
             ms.abs_position = self._p_abs # absolute position in rad
             ms.velocity = v # velocity measured in rad/s
             ms.torque = tau # torque measured in Nm
-            ms.temp = temp  # driver board temp in C
+            ms.temperature = temp  # driver board temp in C
 
             self.pub_state.publish(ms)
 

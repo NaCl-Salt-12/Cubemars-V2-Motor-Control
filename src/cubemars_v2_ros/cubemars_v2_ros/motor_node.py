@@ -16,6 +16,15 @@ LIMITS = {
     "AK80-8": dict(P_MIN=-12.5, P_MAX=12.5, V_MIN=-37.5,  V_MAX=37.5,  T_MIN=-32.0,  T_MAX=32.0,  KP_MIN=0.0, KP_MAX=500.0, KD_MIN=0.0, KD_MAX=5.0),
 }
 
+EFFECTIVE_TORQUE_CONSTANTS = {
+    "AK9-9": 1.44,   # Nm/A
+    "AK69-10": 1.23,   # Nm/A   
+    "AK79-6": 0.63,   # Nm/A
+    "AK79-9": 0.945,   # Nm/A
+    "AK79-64": 8.704,   # Nm/A
+}
+
+
 def normalize_motor_type(name: str) -> str:
     s = str(name).strip().upper().replace('_', '-')
     # Simple aliases
@@ -250,7 +259,7 @@ class MotorNode(Node):
             ms.position = p # position in rad
             ms.abs_position = self._p_abs # absolute position in rad
             ms.velocity = v # velocity measured in rad/s
-            ms.torque = tau # torque measured in Nm
+            ms.torque = tau * EFFECTIVE_TORQUE_CONSTANTS[self.motor_type] # torque measured in Nm
             ms.temperature = temp  # driver board temp in C
 
             self.pub_state.publish(ms)

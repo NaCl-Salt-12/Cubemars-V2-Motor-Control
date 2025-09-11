@@ -17,11 +17,11 @@ LIMITS = {
 }
 
 EFFECTIVE_TORQUE_CONSTANTS = {
-    "AK9-9": 1.44,   # Nm/A
-    "AK69-10": 1.23,   # Nm/A   
-    "AK79-6": 0.63,   # Nm/A
-    "AK79-9": 0.945,   # Nm/A
-    "AK79-64": 8.704,   # Nm/A
+    "AK10-9": 1.44,   # Nm/A
+    "AK70-10": 1.23,   # Nm/A   
+    "AK80-6": 0.63,   # Nm/A
+    "AK80-9": 0.945,   # Nm/A
+    "AK80-64": 8.704,   # Nm/A
 }
 
 

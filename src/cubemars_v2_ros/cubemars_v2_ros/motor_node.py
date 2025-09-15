@@ -122,6 +122,7 @@ class MotorNode(Node):
         self.joint_name = self.get_parameter('joint_name').value
         self.control_dt = 1.0 / float(self.get_parameter('control_hz').value)
         self.auto_start = bool(self.get_parameter('auto_start').value)
+        self.control_hz = self.get_parameter('control_hz').value
 
         # log parameters
         self.get_logger().info(
@@ -129,7 +130,7 @@ class MotorNode(Node):
             Motor: {self.joint_name}
             Can_id: {self.can_id}
             Motor type: {self.motor_type}
-            Control Hz: {self.get_parameter('control_hz')}
+            Control Hz: {self.control_hz}
             Auto Start: {self.auto_start}
             """
         )

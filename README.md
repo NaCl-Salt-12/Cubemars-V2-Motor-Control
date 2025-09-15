@@ -88,7 +88,7 @@ The `MotorState` message contains:
 - `abs_position` (float): Unwrapped absolute position (rad).
 - `velocity` (float): Current velocity (rad/s).
 - `torque` (float): Current torque (Nm).
-- `temp` (float): Driver board temperature (°C).
+- `temperature` (float): Driver board temperature (°C).
 
 ## Subscribed Topics
 

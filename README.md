@@ -133,17 +133,17 @@ The `special` topic accepts the following commands (case-insensitive):
 
 2. **Send MIT Commands**:
    ```bash
-   ros2 topic pub joint1/mit_cmd std_msgs/msg/Float64MultiArray "{data: [1.0, 0.0, 100.0, 1.0, 0.0]}"
+   ros2 topic pub /joint1/mit_cmd std_msgs/msg/Float64MultiArray "{data: [1.0, 0.0, 100.0, 1.0, 0.0]}"
    ```
 
 3. **Send Special Commands**:
    ```bash
-   ros2 topic pub joint1/special std_msgs/msg/String "{data: 'start'}"
+   ros2 topic pub /joint1/special std_msgs/msg/String "{data: 'start'}"
    ```
 
 4. **Monitor State**:
    ```bash
-   ros2 topic echo joint1/motor_state
-   ros2 topic echo joint1/temperature
-   ros2 topic echo joint1/error_code
+   ros2 topic echo /joint1/motor_state
+   ros2 topic echo /joint1/temperature
+   ros2 topic echo /joint1/error_code
    ```

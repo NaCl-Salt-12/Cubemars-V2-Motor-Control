@@ -9,7 +9,7 @@ LIMITS = {
     # Position is ±12.5 rad for all; Kp=[0,500], Kd=[0,5]
     "AK10-9": dict(P_MIN=-12.5, P_MAX=12.5, V_MIN=-50.0,  V_MAX=50.0,  T_MIN=-65.0,  T_MAX=65.0,  KP_MIN=0.0, KP_MAX=500.0, KD_MIN=0.0, KD_MAX=5.0),
     "AK60-6": dict(P_MIN=-12.5, P_MAX=12.5, V_MIN=-45.0,  V_MAX=45.0,  T_MIN=-15.0,  T_MAX=15.0,  KP_MIN=0.0, KP_MAX=500.0, KD_MIN=0.0, KD_MAX=5.0),
-    "AK70-10":dict(P_MIN=-12.5, P_MAX=12.5, V_MIN=-50.0,  V_MAX=50.0,  T_MIN=-25.0,  T_MAX=25.0,  KP_MIN=0.0, KP_MAX=500.0, KD_MIN=0.0, KD_MAX=5.0),
+    "AK70-10":dict(P_MIN=-22.5, P_MAX=22.5, V_MIN=-50.0,  V_MAX=50.0,  T_MIN=-25.0,  T_MAX=25.0,  KP_MIN=0.0, KP_MAX=500.0, KD_MIN=0.0, KD_MAX=5.0),
     "AK80-6": dict(P_MIN=-12.5, P_MAX=12.5, V_MIN=-76.0,  V_MAX=76.0,  T_MIN=-12.0,  T_MAX=12.0,  KP_MIN=0.0, KP_MAX=500.0, KD_MIN=0.0, KD_MAX=5.0),
     "AK80-9": dict(P_MIN=-12.5, P_MAX=12.5, V_MIN=-50.0,  V_MAX=50.0,  T_MIN=-18.0,  T_MAX=18.0,  KP_MIN=0.0, KP_MAX=500.0, KD_MIN=0.0, KD_MAX=5.0),
     "AK80-64":dict(P_MIN=-12.5, P_MAX=12.5, V_MIN=-8.0,   V_MAX=8.0,   T_MIN=-144.0, T_MAX=144.0, KP_MIN=0.0, KP_MAX=500.0, KD_MIN=0.0, KD_MAX=5.0),

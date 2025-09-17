@@ -4,6 +4,7 @@ from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, String, Int32 
 from motor_interfaces.msg import MotorState
 
+# testing
 # Motor limits (from CubeMars table)
 LIMITS = {
     # Position is ±12.5 rad for all; Kp=[0,500], Kd=[0,5]

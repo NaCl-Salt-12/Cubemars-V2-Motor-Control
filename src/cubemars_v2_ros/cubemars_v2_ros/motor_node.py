@@ -217,7 +217,7 @@ class MotorNode(Node):
             
             # Check if position wrapping is needed
             if self._needs_wrapping(p):
-                self.get_logger().info(f"Position wrapping needed. Current cmd: {p}, abs position: {self._p_abs}")
+                self.get_logger().debug(f"Position wrapping needed. Current cmd: {p}, abs position: {self._p_abs}")
                 # Zero the motor
                 self._send_special(0xFE)
                 # Update position offset
@@ -226,7 +226,7 @@ class MotorNode(Node):
                 self._last_p = None
                 # Use adjusted position command
                 p = self._calculate_wrapped_position(p)
-                self.get_logger().info(f"After wrapping: position cmd: {p}, offset: {self._position_offset}")
+                self.get_logger().debug(f"After wrapping: position cmd: {p}, offset: {self._position_offset}")
                 
         data = pack_mit(p, v, kp, kd, t, self.R)
         try:

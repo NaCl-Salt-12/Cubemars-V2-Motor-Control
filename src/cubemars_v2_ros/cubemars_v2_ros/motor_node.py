@@ -174,18 +174,38 @@ class MotorNode(Node):
             self._send_special(0xFC)
             self._started = True
 
+        # ---- wrapping ----
+        self._wrapping_in_progress = False
+        self._pending_cmd = None
+
     # ---- callbacks ----
     def on_cmd(self, msg):
         if len(msg.data) != 5:
             self.get_logger().warn("mit_cmd expects [p, v, kp, kd, t]")
             return
-        with self._lock:
-            self.cmd = list(map(float, msg.data))
-            self._neutral_hold = False     # new command cancels the clear-hold
-        # Lazy-start exactly once on first command
+        
         if not self._started:
             self._send_special(0xFC)
             self._started = True
+            
+        with self._lock:
+            if self._wrapping_in_progress:
+                # Store command to execute after wrapping completes
+                self._pending_cmd = list(map(float, msg.data))
+                return
+                
+            p, v, kp, kd, t = list(map(float, msg.data))
+            
+            if self._needs_wrapping(p):
+                self.get_logger().info(f"Initiating position wrapping for position {p}")
+                self._wrapping_in_progress = True
+                self._pending_cmd = [p, v, kp, kd, t]
+                self._send_special(0xFE)
+                # Don't update cmd or offset here - wait for zero confirmation
+                return
+            
+            self.cmd = [p, v, kp, kd, t]
+            self._neutral_hold = False
 
     def on_special(self, msg):
         m = msg.data.strip().lower()
@@ -213,20 +233,10 @@ class MotorNode(Node):
     # ---- timers ----
     def _tick_control(self):
         with self._lock:
+            if self._wrapping_in_progress:
+                return  # Don't send commands during wrapping
+                
             p, v, kp, kd, t = ([0.0]*5) if self._neutral_hold else self.cmd
-            
-            # Check if position wrapping is needed
-            if self._needs_wrapping(p):
-                self.get_logger().debug(f"Position wrapping needed. Current cmd: {p}, abs position: {self._p_abs}")
-                # Zero the motor
-                self._send_special(0xFE)
-                # Update position offset
-                self._position_offset = self._p_abs
-                # Reset tracking variables
-                self._last_p = None
-                # Use adjusted position command
-                p = self._calculate_wrapped_position(p)
-                self.get_logger().debug(f"After wrapping: position cmd: {p}, offset: {self._position_offset}")
                 
         data = pack_mit(p, v, kp, kd, t, self.R)
         try:
@@ -237,12 +247,24 @@ class MotorNode(Node):
     # ---- helpers ----
     def _needs_wrapping(self, position_cmd):
         """Check if the commanded position exceeds motor limits and requires wrapping"""
-        return position_cmd > self.R["P_MAX"] or position_cmd < self.R["P_MIN"]
-    
+        effective_position = position_cmd - self._position_offset
+        margin = 1.0  # Increased margin for safety
+        
+        return (effective_position > (self.R["P_MAX"] - margin) or 
+                effective_position < (self.R["P_MIN"] + margin))
+
     def _calculate_wrapped_position(self, position_cmd):
         """Calculate the wrapped position after zeroing"""
-        # After zeroing, we want to command a position relative to the new zero point
-        return position_cmd - self._position_offset
+        # After zeroing, the new command should just be the remainder within the motor limits
+        # This keeps the motor at the same physical position but resets the reference frame
+        span = self.R["P_MAX"] - self.R["P_MIN"]
+        
+        # Calculate position within motor range
+        relative_pos = (position_cmd - self._position_offset) % span
+        if relative_pos > self.R["P_MAX"]:
+            relative_pos -= span
+            
+        return relative_pos
     
     def _send_special(self, code):
         d = b"\xFF"*7 + bytes([code & 0xFF])
@@ -294,6 +316,21 @@ class MotorNode(Node):
 
             self.pub_state.publish(ms)
 
+            # After position unwrapping logic:
+            with self._lock:
+                # Check if we just completed a zero operation
+                if self._wrapping_in_progress and abs(p) < 0.1:  # Motor near zero
+                    self.get_logger().info("Zero operation completed, updating offset")
+                    self._position_offset = self._p_abs
+                    self._wrapping_in_progress = False
+                    
+                    # Execute pending command if available
+                    if self._pending_cmd:
+                        p_cmd, v, kp, kd, t = self._pending_cmd
+                        wrapped_p = self._calculate_wrapped_position(p_cmd)
+                        self.cmd = [wrapped_p, v, kp, kd, t]
+                        self._pending_cmd = None
+                        self._neutral_hold = False
 
 
     def destroy_node(self):

@@ -217,7 +217,7 @@ class MotorNode(Node):
             
             # Check if position wrapping is needed
             if self._needs_wrapping(p):
-                self.get_logger().debug(f"Position wrapping needed. Current cmd: {p}, abs position: {self._p_abs}")
+                self.get_logger().info(f"Position wrapping needed. Current cmd: {p}, abs position: {self._p_abs}")
                 # Zero the motor
                 self._send_special(0xFE)
                 # Update position offset
@@ -226,7 +226,7 @@ class MotorNode(Node):
                 self._last_p = None
                 # Use adjusted position command
                 p = self._calculate_wrapped_position(p)
-                self.get_logger().debug(f"After wrapping: position cmd: {p}, offset: {self._position_offset}")
+                self.get_logger().info(f"After wrapping: position cmd: {p}, offset: {self._position_offset}")
                 
         data = pack_mit(p, v, kp, kd, t, self.R)
         try:
@@ -235,6 +235,15 @@ class MotorNode(Node):
             pass
 
     # ---- helpers ----
+    def _needs_wrapping(self, position_cmd):
+        """Check if the commanded position exceeds motor limits and requires wrapping"""
+        return position_cmd > self.R["P_MAX"] or position_cmd < self.R["P_MIN"]
+    
+    def _calculate_wrapped_position(self, position_cmd):
+        """Calculate the wrapped position after zeroing"""
+        # After zeroing, we want to command a position relative to the new zero point
+        return position_cmd - self._position_offset
+    
     def _send_special(self, code):
         d = b"\xFF"*7 + bytes([code & 0xFF])
         try: self.bus.send(can.Message(arbitration_id=self.arb, data=d, is_extended_id=False))
@@ -259,7 +268,7 @@ class MotorNode(Node):
 
             # Unwrap absolute position
             if self._last_p is None:
-                self._p_abs = p
+                self._p_abs = self._position_offset + p
             else:
                 dp = p - self._last_p
                 if dp >  0.5 * self._span: dp -= self._span

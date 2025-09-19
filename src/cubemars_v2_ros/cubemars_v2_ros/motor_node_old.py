@@ -10,7 +10,7 @@ The node publishes motor state data including position, velocity, torque,
 temperature, and error codes, and subscribes to command topics for motor control.
 """
 
-import threading, can, rclpy, time
+import threading, can, rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, String, Int32 
 from motor_interfaces.msg import MotorState
@@ -216,11 +216,6 @@ class MotorNode(Node):
         self.declare_parameter('joint_name', 'joint')       # Name for this joint/motor
         self.declare_parameter('auto_start', False)         # Whether to auto-start the motor
 
-        # Position wrapping parameters: when raw position approaches wrap_threshold (rad)
-        # the node will send a ZERO command so the encoder is re-zeroed and motion can continue smoothly.
-        self.declare_parameter('wrap_threshold', 12.0)      # Threshold to trigger encoder zeroing (rad)
-        self.declare_parameter('wrap_cooldown', 1.0)       # Minimum seconds between wrap/zero operations
-
         # Get parameters
         self.iface = self.get_parameter('can_interface').value
         self.can_id = int(self.get_parameter('can_id').value)
@@ -230,13 +225,6 @@ class MotorNode(Node):
         self.control_dt = 1.0 / float(self.get_parameter('control_hz').value)  # Control period
         self.auto_start = bool(self.get_parameter('auto_start').value)
         self.control_hz = self.get_parameter('control_hz').value
-
-        # Wrapping runtime state
-        self.wrap_threshold = float(self.get_parameter('wrap_threshold').value)
-        self.wrap_cooldown = float(self.get_parameter('wrap_cooldown').value)
-        self._zero_pending = False         # Waiting for encoder to report after a ZERO command
-        self._pre_zero_raw = 0.0           # Raw position before sending ZERO
-        self._last_wrap_time = 0.0         # Time of last wrap to avoid repeated zeroing
 
         # Log parameters for debugging
         self.get_logger().info(
@@ -431,42 +419,6 @@ class MotorNode(Node):
             # Verify the driver ID matches our expected ID (low byte of arbitration ID)
             if drv != (self.arb & 0xFF):
                 continue
-
-            # --- Encoder wrapping/zero logic ---
-            now = time.time()
-            # If encoder ZERO is pending, this message should be the post-zero reading.
-            if self._zero_pending:
-                # Adjust absolute position to preserve continuity:
-                # after zero the raw p will be near 0; shift the absolute offset by (p - pre_zero_raw)
-                delta = p - self._pre_zero_raw
-                self._p_abs += delta
-                self._zero_pending = False
-                self._neutral_hold = False  # resume previously held commands
-                # initialize last raw position with the post-zero raw sample to avoid double counting
-                self._last_p = p
-                self.get_logger().info(f"Encoder zeroed for {self.joint_name}, adjusted abs by {delta:.4f} rad")
-            else:
-                # Detect approach to mechanical/electrical limits and zero encoder so motion can continue
-                # Only trigger when moving toward the boundary and when cooldown elapsed
-                if (now - self._last_wrap_time) > self.wrap_cooldown and self._started:
-                    # forward wrap (positive side)
-                    if p >= self.wrap_threshold and v > 0:
-                        self._pre_zero_raw = p
-                        self._send_special(0xFE)  # ZERO command
-                        self._zero_pending = True
-                        self._last_wrap_time = now
-                        self._neutral_hold = True  # hold outputs while zeroing for safety
-                        self.get_logger().info(f"Triggering encoder zero (positive wrap) for {self.joint_name} p={p:.3f} v={v:.3f}")
-                        continue  # wait for the post-zero sample
-                    # backward wrap (negative side)
-                    if p <= -self.wrap_threshold and v < 0:
-                        self._pre_zero_raw = p
-                        self._send_special(0xFE)  # ZERO command
-                        self._zero_pending = True
-                        self._last_wrap_time = now
-                        self._neutral_hold = True
-                        self.get_logger().info(f"Triggering encoder zero (negative wrap) for {self.joint_name} p={p:.3f} v={v:.3f}")
-                        continue  # wait for the post-zero sample
 
             # ---- Process position data for unwrapping ----
             # Handle position unwrapping to track continuous rotation beyond ±12.5 rad

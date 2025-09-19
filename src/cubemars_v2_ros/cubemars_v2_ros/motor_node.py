@@ -457,6 +457,7 @@ class MotorNode(Node):
             ms.abs_position = self._p_abs                               # Absolute position in rad (unwrapped)
             ms.velocity = v                                             # Velocity in rad/s
             ms.torque = tau * EFFECTIVE_TORQUE_CONSTANTS[self.motor_type]  # Torque in Nm (scaled)
+            ms.current = tau                                            # Current in A 
             ms.temperature = temp                                       # Temperature in °C
             self.pub_state.publish(ms)
 

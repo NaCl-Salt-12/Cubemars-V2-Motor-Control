@@ -159,7 +159,6 @@ class MotorNode(Node):
         self._last_p = None
         self._p_abs = 0.0
         self._span = self.R["P_MAX"] - self.R["P_MIN"]
-        self._position_offset = 0.0  # Track position offset from zeroing operations
 
         # ---- timers ----
         self.create_timer(self.control_dt, self._tick_control)
@@ -199,9 +198,6 @@ class MotorNode(Node):
                 self._started = False
         elif m == "zero":
             self._send_special(0xFE)
-            # Update position offset when manually zeroing
-            self._position_offset = self._p_abs
-            self._last_p = None
         elif m == "clear":
             with self._lock:
                 self.cmd = [0.0, 0.0, 0.0, 0.0, 0.0]  # clear cached command too
@@ -214,20 +210,6 @@ class MotorNode(Node):
     def _tick_control(self):
         with self._lock:
             p, v, kp, kd, t = ([0.0]*5) if self._neutral_hold else self.cmd
-            
-            # Check if position wrapping is needed
-            if self._needs_wrapping(p):
-                self.get_logger().debug(f"Position wrapping needed. Current cmd: {p}, abs position: {self._p_abs}")
-                # Zero the motor
-                self._send_special(0xFE)
-                # Update position offset
-                self._position_offset = self._p_abs
-                # Reset tracking variables
-                self._last_p = None
-                # Use adjusted position command
-                p = self._calculate_wrapped_position(p)
-                self.get_logger().debug(f"After wrapping: position cmd: {p}, offset: {self._position_offset}")
-                
         data = pack_mit(p, v, kp, kd, t, self.R)
         try:
             self.bus.send(can.Message(arbitration_id=self.arb, data=data, is_extended_id=False))

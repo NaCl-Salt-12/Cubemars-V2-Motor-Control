@@ -314,7 +314,8 @@ class MotorNode(Node):
 
             if is_pos_cmd:
                 cmd_pos = msg.data[0]
-                target_pos = cmd_pos - self._abs_diff
+                # target_pos = cmd_pos - self._abs_diff
+                target_pos = cmd_pos - self._p_abs
             self.cmd = [target_pos if is_pos_cmd else 0.0,  # Position (adjusted for absolute tracking)
                         float(msg.data[1]),                        # Velocity
                         float(msg.data[2]),                        # Kp
@@ -466,7 +467,7 @@ class MotorNode(Node):
                         self._zero_pending = True
                         self._last_wrap_time = now
                         self._neutral_hold = True  # hold outputs while zeroing for safety
-                        self._abs_diff += p
+                        # self._abs_diff += p
                         self.get_logger().info(f"Triggering encoder zero (positive wrap) for {self.joint_name} p={p:.3f} v={v:.3f}")
                         continue  # wait for the post-zero sample
                     # backward wrap (negative side)
@@ -476,7 +477,7 @@ class MotorNode(Node):
                         self._zero_pending = True
                         self._last_wrap_time = now
                         self._neutral_hold = True
-                        self._abs_diff += p
+                        # self._abs_diff += p
                         self.get_logger().info(f"Triggering encoder zero (negative wrap) for {self.joint_name} p={p:.3f} v={v:.3f}")
                         continue  # wait for the post-zero sample
 
@@ -514,7 +515,7 @@ class MotorNode(Node):
             ms = MotorState()
             ms.name = self.joint_name                                   # Motor/joint name
             ms.position = p                                             # Position in rad (raw)
-            ms.abs_position =  self._p_abs + self._abs_diff                       # Absolute position in rad (unwrapped)
+            ms.abs_position =  self._p_abs#+ self._abs_diff                       # Absolute position in rad (unwrapped)
             ms.velocity = v                                             # Velocity in rad/s
             ms.torque = tau * EFFECTIVE_TORQUE_CONSTANTS[self.motor_type]  # Torque in Nm (scaled)
             ms.current = tau                                            # Current in A 

@@ -441,14 +441,11 @@ class MotorNode(Node):
             
             # Handle encoder zero completion
             if self._zero_pending:
-                # After zero, encoder reads ~0, but we want to maintain continuity
-                # Adjust our absolute tracking to account for the zero operation
-                self._p_abs = self._p_abs + (p - self._pre_zero_raw)
+                delta = p - self._pre_zero_raw
+                self._p_abs += delta  # This modifies absolute position
                 self._zero_pending = False
                 self._neutral_hold = False
-                self._last_p = p  # Initialize for next unwrapping cycle
-                self.get_logger().info(f"Encoder zeroed for {self.joint_name}")
-                # Skip normal unwrapping this cycle since we handled it above
+                self._last_p = p
             else:
                 # Check for wrap conditions and trigger zero if needed
                 if (now - self._last_wrap_time) > self.wrap_cooldown and self._started:

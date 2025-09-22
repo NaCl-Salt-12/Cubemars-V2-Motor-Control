@@ -279,6 +279,7 @@ class MotorNode(Node):
         # Absolute position tracking (unwrapping)
         self._last_p = None             # Last raw position reading
         self._p_abs = 0.0               # Unwrapped absolute position
+        self._abs_diff = 0.0            # Difference in absolute position since last reading
         self._span = self.R["P_MAX"] - self.R["P_MIN"]  # Position range
 
         # ---- Timers ----
@@ -307,9 +308,18 @@ class MotorNode(Node):
         if len(msg.data) != 5:
             self.get_logger().warn("mit_cmd expects [position, velocity, Kp, Kd, torque]")
             return
-        
+    
         with self._lock:
-            self.cmd = list(map(float, msg.data))
+            is_pos_cmd = float(msg.data[2] > 0.0)
+
+            if is_pos_cmd:
+                cmd_pos = msg.data[0]
+                target_pos = cmd_pos - self._abs_diff
+            self.cmd = [target_pos if is_pos_cmd else 0.0,  # Position (adjusted for absolute tracking)
+                        float(msg.data[1]),                        # Velocity
+                        float(msg.data[2]),                        # Kp
+                        float(msg.data[3]),                        # Kd
+                        float(msg.data[4])]                        # Torque
             self._neutral_hold = False  # New command cancels any previous "clear" hold
         
         # Auto-start the motor on first command if not already started
@@ -456,6 +466,7 @@ class MotorNode(Node):
                         self._zero_pending = True
                         self._last_wrap_time = now
                         self._neutral_hold = True  # hold outputs while zeroing for safety
+                        self._abs_diff += p
                         self.get_logger().info(f"Triggering encoder zero (positive wrap) for {self.joint_name} p={p:.3f} v={v:.3f}")
                         continue  # wait for the post-zero sample
                     # backward wrap (negative side)
@@ -465,6 +476,7 @@ class MotorNode(Node):
                         self._zero_pending = True
                         self._last_wrap_time = now
                         self._neutral_hold = True
+                        self._abs_diff += p
                         self.get_logger().info(f"Triggering encoder zero (negative wrap) for {self.joint_name} p={p:.3f} v={v:.3f}")
                         continue  # wait for the post-zero sample
 

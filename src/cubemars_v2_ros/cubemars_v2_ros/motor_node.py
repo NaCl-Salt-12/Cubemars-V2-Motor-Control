@@ -421,86 +421,70 @@ class MotorNode(Node):
             self.get_logger().error(f"Failed to send MIT command to motor {self.joint_name}")
 
     def _rx_loop(self):
-        """
-        Background thread that receives and processes CAN messages from the motor
-        """
+        """Background thread that receives and processes CAN messages from the motor"""
         while not self._stop:
-            # Wait for a CAN message (with timeout)
             rx = self.bus.recv(timeout=0.005)
             
-            # Skip if no message or wrong ID/length
             if not rx or rx.arbitration_id != self.arb or len(rx.data) != 8:
                 continue
             
-            # Parse the motor reply
             s = parse_reply(rx.data, self.R)
             if not s:
                 continue
             
             drv, p, v, tau, temp, err = s
             
-            # Verify the driver ID matches our expected ID (low byte of arbitration ID)
             if drv != (self.arb & 0xFF):
                 continue
 
-            # --- Encoder wrapping/zero logic ---
             now = time.time()
-            # If encoder ZERO is pending, this message should be the post-zero reading.
+            
+            # Handle encoder zero completion
             if self._zero_pending:
-                # Adjust absolute position to preserve continuity:
-                # after zero the raw p will be near 0; shift the absolute offset by (p - pre_zero_raw)
-                delta = p - self._pre_zero_raw
-                self._p_abs += delta
+                # After zero, encoder reads ~0, but we want to maintain continuity
+                # Adjust our absolute tracking to account for the zero operation
+                self._p_abs = self._p_abs + (p - self._pre_zero_raw)
                 self._zero_pending = False
-                self._neutral_hold = False  # resume previously held commands
-                # initialize last raw position with the post-zero raw sample to avoid double counting
-                self._last_p = p
-                self.get_logger().info(f"Encoder zeroed for {self.joint_name}, adjusted abs by {delta:.4f} rad")
+                self._neutral_hold = False
+                self._last_p = p  # Initialize for next unwrapping cycle
+                self.get_logger().info(f"Encoder zeroed for {self.joint_name}")
+                # Skip normal unwrapping this cycle since we handled it above
             else:
-                # Detect approach to mechanical/electrical limits and zero encoder so motion can continue
-                # Only trigger when moving toward the boundary and when cooldown elapsed
+                # Check for wrap conditions and trigger zero if needed
                 if (now - self._last_wrap_time) > self.wrap_cooldown and self._started:
-                    # forward wrap (positive side)
                     if p >= self.wrap_threshold and v > 0:
                         self._pre_zero_raw = p
-                        self._send_special(0xFE)  # ZERO command
-                        self._zero_pending = True
-                        self._last_wrap_time = now
-                        self._neutral_hold = True  # hold outputs while zeroing for safety
-                        self._abs_diff += p
-                        self.get_logger().info(f"Triggering encoder zero (positive wrap) for {self.joint_name} p={p:.3f} v={v:.3f}")
-                        continue  # wait for the post-zero sample
-                    # backward wrap (negative side)
-                    if p <= -self.wrap_threshold and v < 0:
-                        self._pre_zero_raw = p
-                        self._send_special(0xFE)  # ZERO command
+                        self._send_special(0xFE)
                         self._zero_pending = True
                         self._last_wrap_time = now
                         self._neutral_hold = True
-                        self._abs_diff += p
-                        self.get_logger().info(f"Triggering encoder zero (negative wrap) for {self.joint_name} p={p:.3f} v={v:.3f}")
-                        continue  # wait for the post-zero sample
+                        self.get_logger().info(f"Triggering encoder zero (positive wrap)")
+                        continue
+                    if p <= -self.wrap_threshold and v < 0:
+                        self._pre_zero_raw = p
+                        self._send_special(0xFE)
+                        self._zero_pending = True
+                        self._last_wrap_time = now
+                        self._neutral_hold = True
+                        self.get_logger().info(f"Triggering encoder zero (negative wrap)")
+                        continue
 
-            # ---- Process position data for unwrapping ----
-            # Handle position unwrapping to track continuous rotation beyond ±12.5 rad
-            if self._last_p is None:
-                # First reading - initialize absolute position
-                self._p_abs = p
-            else:
-                # Calculate position change, handling wraparound
-                dp = p - self._last_p
+                # Normal position unwrapping (only when not handling zero)
+                if self._last_p is not None:
+                    dp = p - self._last_p
+                    
+                    # Handle wraparound
+                    if dp > 0.5 * self._span:
+                        dp -= self._span
+                    if dp < -0.5 * self._span:
+                        dp += self._span
+                    
+                    self._p_abs += dp
+                else:
+                    # First reading
+                    self._p_abs = p
                 
-                # Detect and correct for wraparound (e.g. going from +12.4 to -12.4 rad)
-                if dp > 0.5 * self._span:  # Wraparound in negative direction
-                    dp -= self._span
-                if dp < -0.5 * self._span:  # Wraparound in positive direction
-                    dp += self._span
-                
-                # Update absolute position
-                self._p_abs += dp
-            
-            # Store current position for next iteration
-            self._last_p = p
+                self._last_p = p
 
             # ---- Publish motor data ----
             # Publish temperature separately 
@@ -515,7 +499,7 @@ class MotorNode(Node):
             ms = MotorState()
             ms.name = self.joint_name                                   # Motor/joint name
             ms.position = p                                             # Position in rad (raw)
-            ms.abs_position =  self._p_abs + self._abs_diff                       # Absolute position in rad (unwrapped)
+            ms.abs_position =  self._p_abs                       # Absolute position in rad (unwrapped)
             ms.velocity = v                                             # Velocity in rad/s
             ms.torque = tau * EFFECTIVE_TORQUE_CONSTANTS[self.motor_type]  # Torque in Nm (scaled)
             ms.current = tau                                            # Current in A 

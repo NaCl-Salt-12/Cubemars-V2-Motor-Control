@@ -485,22 +485,22 @@ class MotorNode(Node):
             if self._last_p is None:
                 # First reading - initialize absolute position
                 self._p_abs = p
-            # else:
-            #     # Calculate position change, handling wraparound
-            #     dp = p - self._last_p
+            else:
+                # Calculate position change, handling wraparound
+                dp = p - self._last_p
                 
-            #     # Detect and correct for wraparound (e.g. going from +12.4 to -12.4 rad)
-            #     if dp > 0.5 * self._span:  # Wraparound in negative direction
-            #         dp -= self._span
-            #     if dp < -0.5 * self._span:  # Wraparound in positive direction
-            #         dp += self._span
+                # Detect and correct for wraparound (e.g. going from +12.4 to -12.4 rad)
+                if dp > 0.5 * self._span:  # Wraparound in negative direction
+                    dp -= self._span
+                if dp < -0.5 * self._span:  # Wraparound in positive direction
+                    dp += self._span
                 
-            #     # Update absolute position
-            #     self._p_abs += dp
+                # Update absolute position
+                self._p_abs += dp
             
-            # # Store current position for next iteration
-            # self._last_p = p
-            abs_1 = self._p_abs + self._abs_diff
+            # Store current position for next iteration
+            self._last_p = p
+            abs_1 = self._p_abs
             abs2 = p + self._abs_diff
             self.get_logger().info(f"Abs_1 pos: {abs_1:.3f} rad, Abs pos: {abs2:.3f} rad")
 

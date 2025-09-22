@@ -482,9 +482,9 @@ class MotorNode(Node):
 
             # ---- Process position data for unwrapping ----
             # Handle position unwrapping to track continuous rotation beyond ±12.5 rad
-            # if self._last_p is None:
-            #     # First reading - initialize absolute position
-            #     self._p_abs = p
+            if self._last_p is None:
+                # First reading - initialize absolute position
+                self._p_abs = p
             # else:
             #     # Calculate position change, handling wraparound
             #     dp = p - self._last_p

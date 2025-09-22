@@ -236,7 +236,14 @@ class MotorNode(Node):
         self.wrap_cooldown = float(self.get_parameter('wrap_cooldown').value)
         self._zero_pending = False         # Waiting for encoder to report after a ZERO command
         self._pre_zero_raw = 0.0           # Raw position before sending ZERO
+        self._pre_zero_vel = 0.0           # Velocity direction before zeroing
+        self._zero_offset = 0.0            # Accumulated position from zeroing operations
         self._last_wrap_time = 0.0         # Time of last wrap to avoid repeated zeroing
+        
+        # Absolute position tracking (unwrapping)
+        self._last_p = None             # Last raw position reading
+        self._p_abs = 0.0               # Unwrapped absolute position
+        self._span = self.R["P_MAX"] - self.R["P_MIN"]  # Position range
 
         # Log parameters for debugging
         self.get_logger().info(
@@ -436,15 +443,19 @@ class MotorNode(Node):
             now = time.time()
             # If encoder ZERO is pending, this message should be the post-zero reading.
             if self._zero_pending:
-                # Adjust absolute position to preserve continuity:
-                # after zero the raw p will be near 0; shift the absolute offset by (p - pre_zero_raw)
-                delta = p - self._pre_zero_raw
-                self._p_abs += delta
+                # When encoder is zeroed, we need to update the offset to maintain continuous absolute position
+                if self._pre_zero_vel > 0:  # Was moving in positive direction
+                    # Add the remaining distance to threshold, plus the distance from 0 to current position
+                    self._zero_offset += (self.wrap_threshold - self._pre_zero_raw) + p
+                else:  # Was moving in negative direction
+                    # Add the remaining distance to negative threshold, plus the distance from 0 to current position
+                    self._zero_offset += (-self.wrap_threshold - self._pre_zero_raw) + p
+                
                 self._zero_pending = False
                 self._neutral_hold = False  # resume previously held commands
-                # initialize last raw position with the post-zero raw sample to avoid double counting
-                self._last_p = p
-                self.get_logger().info(f"Encoder zeroed for {self.joint_name}, adjusted abs by {delta:.4f} rad")
+                self._last_p = p  # Use current position as reference for future calculations
+                
+                self.get_logger().info(f"Encoder zeroed for {self.joint_name}, zero_offset now {self._zero_offset:.4f} rad")
             else:
                 # Detect approach to mechanical/electrical limits and zero encoder so motion can continue
                 # Only trigger when moving toward the boundary and when cooldown elapsed
@@ -452,6 +463,7 @@ class MotorNode(Node):
                     # forward wrap (positive side)
                     if p >= self.wrap_threshold and v > 0:
                         self._pre_zero_raw = p
+                        self._pre_zero_vel = v  # Remember direction of motion
                         self._send_special(0xFE)  # ZERO command
                         self._zero_pending = True
                         self._last_wrap_time = now
@@ -461,6 +473,7 @@ class MotorNode(Node):
                     # backward wrap (negative side)
                     if p <= -self.wrap_threshold and v < 0:
                         self._pre_zero_raw = p
+                        self._pre_zero_vel = v  # Remember direction of motion
                         self._send_special(0xFE)  # ZERO command
                         self._zero_pending = True
                         self._last_wrap_time = now
@@ -489,6 +502,9 @@ class MotorNode(Node):
             # Store current position for next iteration
             self._last_p = p
 
+            # Compute true absolute position that includes all zeroing operations
+            true_abs_position = self._p_abs + self._zero_offset
+
             # ---- Publish motor data ----
             # Publish temperature separately 
             self.pub_temp.publish(Int32(data=int(temp)))
@@ -502,7 +518,7 @@ class MotorNode(Node):
             ms = MotorState()
             ms.name = self.joint_name                                   # Motor/joint name
             ms.position = p                                             # Position in rad (raw)
-            ms.abs_position = self._p_abs                               # Absolute position in rad (unwrapped)
+            ms.abs_position = true_abs_position                         # Absolute position in rad (unwrapped)
             ms.velocity = v                                             # Velocity in rad/s
             ms.torque = tau * EFFECTIVE_TORQUE_CONSTANTS[self.motor_type]  # Torque in Nm (scaled)
             ms.current = tau                                            # Current in A 

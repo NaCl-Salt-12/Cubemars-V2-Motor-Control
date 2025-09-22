@@ -482,24 +482,24 @@ class MotorNode(Node):
 
             # ---- Process position data for unwrapping ----
             # Handle position unwrapping to track continuous rotation beyond ±12.5 rad
-            if self._last_p is None:
-                # First reading - initialize absolute position
-                self._p_abs = p
-            else:
-                # Calculate position change, handling wraparound
-                dp = p - self._last_p
+            # if self._last_p is None:
+            #     # First reading - initialize absolute position
+            #     self._p_abs = p
+            # else:
+            #     # Calculate position change, handling wraparound
+            #     dp = p - self._last_p
                 
-                # Detect and correct for wraparound (e.g. going from +12.4 to -12.4 rad)
-                if dp > 0.5 * self._span:  # Wraparound in negative direction
-                    dp -= self._span
-                if dp < -0.5 * self._span:  # Wraparound in positive direction
-                    dp += self._span
+            #     # Detect and correct for wraparound (e.g. going from +12.4 to -12.4 rad)
+            #     if dp > 0.5 * self._span:  # Wraparound in negative direction
+            #         dp -= self._span
+            #     if dp < -0.5 * self._span:  # Wraparound in positive direction
+            #         dp += self._span
                 
-                # Update absolute position
-                self._p_abs += dp
+            #     # Update absolute position
+            #     self._p_abs += dp
             
-            # Store current position for next iteration
-            self._last_p = p
+            # # Store current position for next iteration
+            # self._last_p = p
 
             # ---- Publish motor data ----
             # Publish temperature separately 
@@ -514,7 +514,7 @@ class MotorNode(Node):
             ms = MotorState()
             ms.name = self.joint_name                                   # Motor/joint name
             ms.position = p                                             # Position in rad (raw)
-            ms.abs_position = self._p_abs                               # Absolute position in rad (unwrapped)
+            ms.abs_position =  p + self._abs_diff                       # Absolute position in rad (unwrapped)
             ms.velocity = v                                             # Velocity in rad/s
             ms.torque = tau * EFFECTIVE_TORQUE_CONSTANTS[self.motor_type]  # Torque in Nm (scaled)
             ms.current = tau                                            # Current in A 

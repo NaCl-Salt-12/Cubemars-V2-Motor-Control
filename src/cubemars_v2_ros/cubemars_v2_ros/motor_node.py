@@ -500,6 +500,9 @@ class MotorNode(Node):
             
             # # Store current position for next iteration
             # self._last_p = p
+            abs_1 = self._p_abs + self._abs_diff
+            abs2 = p + self._abs_diff
+            self.get_logger().debug(f"Abs_1 pos: {abs_1:.3f} rad, Abs pos: {abs2:.3f} rad")
 
             # ---- Publish motor data ----
             # Publish temperature separately 

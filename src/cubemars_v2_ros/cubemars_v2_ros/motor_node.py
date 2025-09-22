@@ -426,7 +426,7 @@ class MotorNode(Node):
         """
         while not self._stop:
             # Wait for a CAN message (with timeout)
-            rx = self.bus.recv(timeout=0.1)
+            rx = self.bus.recv(timeout=0.0001)
             
             # Skip if no message or wrong ID/length
             if not rx or rx.arbitration_id != self.arb or len(rx.data) != 8:

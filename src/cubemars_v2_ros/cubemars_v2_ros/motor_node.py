@@ -312,7 +312,7 @@ class MotorNode(Node):
             if self.position_wrapping:
                 is_pos_cmd = msg.data[2] > 0.0  # Kp > 0 indicates position control
                 
-                if is_pos_cmd:
+                if is_pos_cmd or self.temp_vel_ctrl:
                     cmd_p = msg.data[0]
                     # Convert commanded position to local frame by subtracting accumulated wrapping
                     target_pos = cmd_p - self._abs_diff

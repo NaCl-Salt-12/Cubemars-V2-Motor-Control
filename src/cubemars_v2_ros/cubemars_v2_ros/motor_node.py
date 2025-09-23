@@ -308,7 +308,7 @@ class MotorNode(Node):
             self.get_logger().warn("mit_cmd expects [position, velocity, Kp, Kd, torque]")
             return
         
-        self.get_logger().debug(f"Received MIT command: {msg.data}")
+        self.get_logger().info(f"Received MIT command: {msg.data}")
         
         with self._lock:
             if self.position_wrapping:
@@ -351,7 +351,7 @@ class MotorNode(Node):
             self._started = True
             self.get_logger().info(f"Auto-starting motor {self.joint_name} on first command")
 
-        self.get_logger().debug(f"Sending MIT command: {self.cmd}")
+        self.get_logger().info(f"Sending MIT command: {self.cmd}")
 
     def on_special(self, msg):
         """

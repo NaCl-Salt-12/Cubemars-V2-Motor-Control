@@ -324,11 +324,11 @@ class MotorNode(Node):
                                          (self._last_p > self.positive_wrapping_margin or 
                                           self._last_p < self.negative_wrapping_margin))
                     if self.temp_vel_ctrl:
-                        self.cmd = [0.0, float(msg.data[1]), 0.0, float(msg.data[3]), float(msg.data[4])]
+                        self.cmd = [0.0, self._last_v, 0.0, float(msg.data[3]), float(msg.data[4])]
                     elif target_near_limit and current_near_limit:
                         # Temporarily switch to velocity control mode to handle the wrapping
                         self.temp_vel_ctrl = True
-                        self.cmd = [0.0, float(msg.data[1]), 0.0, float(msg.data[3]), float(msg.data[4])]
+                        self.cmd = [0.0, self._last_v, 0.0, float(msg.data[3]), float(msg.data[4])]
                     else:
                         # Normal position control
                         self.cmd = [float(target_pos), float(msg.data[1]), 

@@ -235,6 +235,8 @@ class MotorNode(Node):
 
         # Get the timeout in seconds
         self.rx_timeout = self.get_parameter('rx_timeout_ms').value / 1000.0
+        self._abs_diff = 0.0 # For tracking absolute position changes
+        self.temp_vel_ctrl = False # Temporary flag for velocity control during wrapping
         
         # Log parameters for debugging
         self.get_logger().info(
@@ -308,30 +310,35 @@ class MotorNode(Node):
         
         with self._lock:
             if self.position_wrapping:
-                is_pos_cmd = msg.data[2] > 0.0  # Kp > 0 indicates position control
+                if self.temp_vel_ctrl: 
+                    self.cmd = [0.0,
+                                float(self._last_v),
+                                0.0,
+                                float(msg.data[3]),
+                                float(msg.data[4])]
+                else:
 
-                if is_pos_cmd:
-                    cmd_p = msg.data[0]
-                    target_pos = cmd_p - self._p_abs # Desired absolute position
-                    target_outside_bounds = (target_pos > self.positive_wrapping_margin or 
-                                            target_pos < self.negative_wrapping_margin)
+                    is_pos_cmd = msg.data[2] > 0.0  # Kp > 0 indicates position control
+                    
+                    # TODO: Improve wrapping logic to better handle the jump between positive and negative
+                    if is_pos_cmd:
+                        cmd_p = msg.data[0]
+                        target_pos = cmd_p - self._abs_diff # Desired absolute position
+                        target_outside_bounds = (target_pos > self.positive_wrapping_margin or 
+                                                target_pos < self.negative_wrapping_margin)
 
-                    last_p_outside_bounds = (self._last_p > self.positive_wrapping_margin or 
-                                            self._last_p < self.negative_wrapping_margin)
+                        last_p_outside_bounds = (self._last_p > self.positive_wrapping_margin or 
+                                                self._last_p < self.negative_wrapping_margin)
 
-                    if target_outside_bounds and last_p_outside_bounds:
-                        # Adjust for wrapping
-                        self.cmd = [0.0,
-                                    float(self._last_v),
-                                    0.0,
-                                    float(msg.data[3]),
-                                    float(msg.data[4])]
+                        if target_outside_bounds and last_p_outside_bounds:
+                            self.temp_vel_ctrl = True
+                            # Adjust for wrapping
                     else:
-                        self.cmd = [float(target_pos),
-                                    float(msg.data[1]),
-                                    float(msg.data[2]),
-                                    float(msg.data[3]),
-                                    float(msg.data[4])]
+                            self.cmd = [float(target_pos),
+                                        float(msg.data[1]),
+                                        float(msg.data[2]),
+                                        float(msg.data[3]),
+                                        float(msg.data[4])]
             else:
                 self.cmd = list(map(float, msg.data))
             self._neutral_hold = False  # New command cancels any previous "clear" hold
@@ -464,12 +471,15 @@ class MotorNode(Node):
             else:
                 # Calculate position change, handling wraparound
                 dp = p - self._last_p
-                
                 # Detect and correct for wraparound (e.g. going from +12.4 to -12.4 rad)
                 if dp > 0.5 * self._span:  # Wraparound in negative direction
                     dp -= self._span
+                    self.temp_vel_ctrl = False  # Exit temporary velocity control
+                    self._abs_diff += self._span  # Adjust absolute difference
                 if dp < -0.5 * self._span:  # Wraparound in positive direction
                     dp += self._span
+                    self.temp_vel_ctrl = False  # Exit temporary velocity control
+                    self._abs_diff -= self._span  # Adjust absolute difference
                 
                 # Update absolute position
                 self._p_abs += dp

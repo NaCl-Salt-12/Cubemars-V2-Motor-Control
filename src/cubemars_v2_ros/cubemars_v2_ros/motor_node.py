@@ -238,7 +238,7 @@ class MotorNode(Node):
 
         # Initialize tracking variables
         self._last_p = None         # Last raw position reading
-        self._last_v = 0.0          # Last velocity reading
+        self._last_v = 0.0 # Last velocity direction (True if positive)
         self._p_abs = 0.0           # Unwrapped absolute position
         self._abs_diff = 0.0        # For tracking absolute position changes
         self.temp_vel_ctrl = False  # Temporary flag for velocity control during wrapping
@@ -484,7 +484,9 @@ class MotorNode(Node):
                 
                 # Store current position and velocity for next iteration
                 self._last_p = p
-                self._last_v = v
+                self._last_v = v  
+                if self._last_v < abs(1.0):
+                    self._last_v = 1.0 if v >= 0 else -1.0  # Maintain last direction if near zero
 
             error_code = String()
             error_code.data = f"Error Code {err}: {get_error_message(err)}"

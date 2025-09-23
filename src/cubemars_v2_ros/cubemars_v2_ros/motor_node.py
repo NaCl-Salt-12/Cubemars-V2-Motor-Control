@@ -215,6 +215,7 @@ class MotorNode(Node):
         self.declare_parameter('poll_state', False)         # Whether to poll state periodically
         self.declare_parameter('joint_name', 'joint')       # Name for this joint/motor
         self.declare_parameter('auto_start', False)         # Whether to auto-start the motor
+        self.declare_parameter('rx_timeout_ms', 10.0)  # Default 10ms
 
         # Get parameters
         self.iface = self.get_parameter('can_interface').value
@@ -226,6 +227,9 @@ class MotorNode(Node):
         self.auto_start = bool(self.get_parameter('auto_start').value)
         self.control_hz = self.get_parameter('control_hz').value
 
+        # Get the timeout in seconds
+        self.rx_timeout = self.get_parameter('rx_timeout_ms').value / 1000.0
+        
         # Log parameters for debugging
         self.get_logger().info(
             f"""
@@ -403,7 +407,7 @@ class MotorNode(Node):
         """
         while not self._stop:
             # Wait for a CAN message (with timeout)
-            rx = self.bus.recv(timeout=0.1)
+            rx = self.bus.recv(timeout=self.rx_timeout)
             
             # Skip if no message or wrong ID/length
             if not rx or rx.arbitration_id != self.arb or len(rx.data) != 8:

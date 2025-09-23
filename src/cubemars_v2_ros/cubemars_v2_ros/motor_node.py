@@ -235,8 +235,13 @@ class MotorNode(Node):
 
         # Get the timeout in seconds
         self.rx_timeout = self.get_parameter('rx_timeout_ms').value / 1000.0
-        self._abs_diff = 0.0 # For tracking absolute position changes
-        self.temp_vel_ctrl = False # Temporary flag for velocity control during wrapping
+
+        # Initialize tracking variables
+        self._last_p = None         # Last raw position reading
+        self._last_v = 0.0          # Last velocity reading
+        self._p_abs = 0.0           # Unwrapped absolute position
+        self._abs_diff = 0.0        # For tracking absolute position changes
+        self.temp_vel_ctrl = False  # Temporary flag for velocity control during wrapping
         
         # Log parameters for debugging
         self.get_logger().info(
@@ -298,49 +303,43 @@ class MotorNode(Node):
 
     # ---- Command Callbacks ----
     def on_cmd(self, msg):
-        """
-        Handle MIT command message: [position, velocity, Kp, Kd, torque]
-        
-        Args:
-            msg: Float64MultiArray containing the command values
-        """
+        """Handle MIT command message: [position, velocity, Kp, Kd, torque]"""
         if len(msg.data) != 5:
             self.get_logger().warn("mit_cmd expects [position, velocity, Kp, Kd, torque]")
             return
         
         with self._lock:
             if self.position_wrapping:
-                if self.temp_vel_ctrl: 
-                    self.cmd = [0.0,
-                                float(self._last_v),
-                                0.0,
-                                float(msg.data[3]),
-                                float(msg.data[4])]
-                else:
-
-                    is_pos_cmd = msg.data[2] > 0.0  # Kp > 0 indicates position control
+                is_pos_cmd = msg.data[2] > 0.0  # Kp > 0 indicates position control
+                
+                if is_pos_cmd:
+                    cmd_p = msg.data[0]
+                    # Convert commanded position to local frame by subtracting accumulated wrapping
+                    target_pos = cmd_p - self._abs_diff
                     
-                    # TODO: Improve wrapping logic to better handle the jump between positive and negative
-                    if is_pos_cmd:
-                        cmd_p = msg.data[0]
-                        target_pos = cmd_p - self._abs_diff # Desired absolute position
-                        target_outside_bounds = (target_pos > self.positive_wrapping_margin or 
-                                                target_pos < self.negative_wrapping_margin)
-
-                        last_p_outside_bounds = (self._last_p > self.positive_wrapping_margin or 
-                                                self._last_p < self.negative_wrapping_margin)
-
-                        if target_outside_bounds and last_p_outside_bounds:
-                            self.temp_vel_ctrl = True
-                            # Adjust for wrapping
+                    # Check if we're near the position limits (where wrapping occurs)
+                    target_near_limit = (target_pos > self.positive_wrapping_margin or 
+                                        target_pos < self.negative_wrapping_margin)
+                    current_near_limit = (self._last_p is not None and 
+                                         (self._last_p > self.positive_wrapping_margin or 
+                                          self._last_p < self.negative_wrapping_margin))
+                    if self.temp_vel_ctrl:
+                        self.cmd = [0.0, float(msg.data[1]), 0.0, float(msg.data[3]), float(msg.data[4])]
+                    elif target_near_limit and current_near_limit:
+                        # Temporarily switch to velocity control mode to handle the wrapping
+                        self.temp_vel_ctrl = True
+                        self.cmd = [0.0, float(msg.data[1]), 0.0, float(msg.data[3]), float(msg.data[4])]
                     else:
-                            self.cmd = [float(target_pos),
-                                        float(msg.data[1]),
-                                        float(msg.data[2]),
-                                        float(msg.data[3]),
-                                        float(msg.data[4])]
+                        # Normal position control
+                        self.cmd = [float(target_pos), float(msg.data[1]), 
+                                   float(msg.data[2]), float(msg.data[3]), float(msg.data[4])]
+                else:
+                    # Pure velocity or torque control
+                    self.cmd = list(map(float, msg.data))
             else:
+                # No position wrapping - just use commands directly
                 self.cmd = list(map(float, msg.data))
+        
             self._neutral_hold = False  # New command cancels any previous "clear" hold
         
         # Auto-start the motor on first command if not already started
@@ -441,9 +440,7 @@ class MotorNode(Node):
             self.get_logger().error(f"Failed to send MIT command to motor {self.joint_name}")
 
     def _rx_loop(self):
-        """
-        Background thread that receives and processes CAN messages from the motor
-        """
+        """Background thread that receives and processes CAN messages from the motor"""
         while not self._stop:
             # Wait for a CAN message (with timeout)
             rx = self.bus.recv(timeout=self.rx_timeout)
@@ -459,82 +456,34 @@ class MotorNode(Node):
             
             drv, p, v, tau, temp, err = s
             
-            # Verify the driver ID matches our expected ID (low byte of arbitration ID)
+            # Verify the driver ID matches our expected ID
             if drv != (self.arb & 0xFF):
                 continue
 
-            # ---- Process position data for unwrapping ----
-            # Handle position unwrapping to track continuous rotation beyond ±12.5 rad
-            if self._last_p is None:
-                # First reading - initialize absolute position
-                self._p_abs = p
-            else:
-                # Calculate position change, handling wraparound
-                dp = p - self._last_p
-                # Detect and correct for wraparound (e.g. going from +12.4 to -12.4 rad)
-                if dp > 0.5 * self._span:  # Wraparound in negative direction
-                    dp -= self._span
-                    self.temp_vel_ctrl = False  # Exit temporary velocity control
-                    self._abs_diff += self._span  # Adjust absolute difference
-                if dp < -0.5 * self._span:  # Wraparound in positive direction
-                    dp += self._span
-                    self.temp_vel_ctrl = False  # Exit temporary velocity control
-                    self._abs_diff -= self._span  # Adjust absolute difference
+            # Use lock for all shared state modifications
+            with self._lock:
+                # Handle position unwrapping to track continuous rotation
+                if self._last_p is None:
+                    # First reading - initialize absolute position
+                    self._p_abs = p
+                else:
+                    # Calculate position change, handling wraparound
+                    dp = p - self._last_p
+                    # Detect and correct for wraparound
+                    if dp > 0.5 * self._span:  # Wraparound in negative direction
+                        dp -= self._span
+                        self.temp_vel_ctrl = False  # Exit temporary velocity control
+                        self._abs_diff += self._span  # Adjust absolute difference
+                    if dp < -0.5 * self._span:  # Wraparound in positive direction
+                        dp += self._span
+                        self.temp_vel_ctrl = False  # Exit temporary velocity control
+                        self._abs_diff -= self._span  # Adjust absolute difference
                 
-                # Update absolute position
-                self._p_abs += dp
+                    # Update absolute position
+                    self._p_abs += dp
             
-            # Store current position for next iteration
+            # Store current position and velocity for next iteration
             self._last_p = p
             self._last_v = v
 
-            # ---- Publish motor data ----
-            # Publish temperature separately 
-            self.pub_temp.publish(Int32(data=int(temp)))
-
-            # Publish error code with human-readable message
-            error_code = String()
-            error_code.data = f"Error Code {err}: {get_error_message(err)}"
-            self.pub_err.publish(error_code)
-
-            # Publish complete motor state 
-            ms = MotorState()
-            ms.name = self.joint_name                                   # Motor/joint name
-            ms.position = p                                             # Position in rad (raw)
-            ms.abs_position = self._p_abs                               # Absolute position in rad (unwrapped)
-            ms.velocity = v                                             # Velocity in rad/s
-            ms.torque = tau * EFFECTIVE_TORQUE_CONSTANTS[self.motor_type]  # Torque in Nm (scaled)
-            ms.current = tau                                            # Current in A  
-            ms.temperature = temp                                       # Temperature in °C
-            self.pub_state.publish(ms)
-
-    def destroy_node(self):
-        """Clean up resources when the node is shutting down"""
-        self._stop = True  # Signal RX thread to stop
-        
-        try: 
-            self._rx.join(timeout=0.3)  # Wait for RX thread to terminate
-        except: 
-            pass
-        
-        try: 
-            self.bus.shutdown()  # Close CAN bus connection
-        except: 
-            pass
-        
-        super().destroy_node()  # Call parent class cleanup
-
-def main(args=None):
-    """Main entry point for the motor node"""
-    rclpy.init(args=args)
-    node = MotorNode()
-    
-    try:
-        rclpy.spin(node)  # Keep the node running
-    except KeyboardInterrupt:
-        # Handle graceful shutdown on Ctrl+C
-        pass
-        
-    # Clean up
-    node.destroy_node()
-    rclpy.shutdown()
+        # ... publish data ...

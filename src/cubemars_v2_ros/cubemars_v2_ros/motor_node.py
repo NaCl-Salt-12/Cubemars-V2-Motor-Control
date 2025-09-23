@@ -481,10 +481,10 @@ class MotorNode(Node):
                 
                     # Update absolute position
                     self._p_abs += dp
-            
-            # Store current position and velocity for next iteration
-            self._last_p = p
-            self._last_v = v
+                
+                # Store current position and velocity for next iteration
+                self._last_p = p
+                self._last_v = v
 
             error_code = String()
             error_code.data = f"Error Code {err}: {get_error_message(err)}"

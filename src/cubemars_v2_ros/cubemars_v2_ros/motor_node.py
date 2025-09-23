@@ -215,7 +215,9 @@ class MotorNode(Node):
         self.declare_parameter('poll_state', False)         # Whether to poll state periodically
         self.declare_parameter('joint_name', 'joint')       # Name for this joint/motor
         self.declare_parameter('auto_start', False)         # Whether to auto-start the motor
-        self.declare_parameter('rx_timeout_ms', 10.0)  # Default 10ms
+        self.declare_parameter('rx_timeout_ms', 10.0)       # Default 10ms
+        self.declare_parameter('position_wrapping', True)   # Whether to allow position wrapping
+        self.declare_parameter('wrapping_margin', 0.5)      # Margin for wrapping detection (rad)
 
         # Get parameters
         self.iface = self.get_parameter('can_interface').value
@@ -226,6 +228,10 @@ class MotorNode(Node):
         self.control_dt = 1.0 / float(self.get_parameter('control_hz').value)  # Control period
         self.auto_start = bool(self.get_parameter('auto_start').value)
         self.control_hz = self.get_parameter('control_hz').value
+        self.position_wrapping = bool(self.get_parameter('position_wrapping').value)
+        self.positive_wrapping_margin = float(12.5 - self.get_parameter('wrapping_margin').value)
+        self.negative_wrapping_margin = -self.positive_wrapping_margin
+
 
         # Get the timeout in seconds
         self.rx_timeout = self.get_parameter('rx_timeout_ms').value / 1000.0
@@ -301,7 +307,33 @@ class MotorNode(Node):
             return
         
         with self._lock:
-            self.cmd = list(map(float, msg.data))
+            if self.position_wrapping:
+                is_pos_cmd = msg.data[2] > 0.0  # Kp > 0 indicates position control
+
+                if is_pos_cmd:
+                    cmd_p = msg.data[0]
+                    target_pos = cmd_p - self._p_abs # Desired absolute position
+                    target_outside_bounds = (target_pos > self.positive_wrapping_margin or 
+                                            target_pos < self.negative_wrapping_margin)
+
+                    last_p_outside_bounds = (self._last_p > self.positive_wrapping_margin or 
+                                            self._last_p < self.negative_wrapping_margin)
+
+                    if target_outside_bounds and last_p_outside_bounds:
+                        # Adjust for wrapping
+                        self.cmd = [0.0,
+                                    float(self._last_v),
+                                    0.0,
+                                    float(msg.data[3]),
+                                    float(msg.data[4])]
+                    else:
+                        self.cmd = [float(target_pos),
+                                    float(msg.data[1]),
+                                    float(msg.data[2]),
+                                    float(msg.data[3]),
+                                    float(msg.data[4])]
+            else:
+                self.cmd = list(map(float, msg.data))
             self._neutral_hold = False  # New command cancels any previous "clear" hold
         
         # Auto-start the motor on first command if not already started
@@ -444,6 +476,7 @@ class MotorNode(Node):
             
             # Store current position for next iteration
             self._last_p = p
+            self._last_v = v
 
             # ---- Publish motor data ----
             # Publish temperature separately 

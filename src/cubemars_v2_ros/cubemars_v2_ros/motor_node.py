@@ -486,4 +486,48 @@ class MotorNode(Node):
             self._last_p = p
             self._last_v = v
 
-        # ... publish data ...
+            error_code = String()
+            error_code.data = f"Error Code {err}: {get_error_message(err)}"
+            self.pub_err.publish(error_code)
+
+            # Publish complete motor state 
+            ms = MotorState()
+            ms.name = self.joint_name                                   # Motor/joint name
+            ms.position = p                                             # Position in rad (raw)
+            ms.abs_position =  self._p_abs                       # Absolute position in rad (unwrapped)
+            ms.velocity = v                                             # Velocity in rad/s
+            ms.torque = tau * EFFECTIVE_TORQUE_CONSTANTS[self.motor_type]  # Torque in Nm (scaled)
+            ms.current = tau                                            # Current in A 
+            ms.temperature = temp                                       # Temperature in °C
+            self.pub_state.publish(ms)
+
+    def destroy_node(self):
+        """Clean up resources when the node is shutting down"""
+        self._stop = True  # Signal RX thread to stop
+        
+        try: 
+            self._rx.join(timeout=0.3)  # Wait for RX thread to terminate
+        except: 
+            pass
+        
+        try: 
+            self.bus.shutdown()  # Close CAN bus connection
+        except: 
+            pass
+        
+        super().destroy_node()  # Call parent class cleanup
+
+def main(args=None):
+    """Main entry point for the motor node"""
+    rclpy.init(args=args)
+    node = MotorNode()
+    
+    try:
+        rclpy.spin(node)  # Keep the node running
+    except KeyboardInterrupt:
+        # Handle graceful shutdown on Ctrl+C
+        pass
+        
+    # Clean up
+    node.destroy_node()
+    rclpy.shutdown()

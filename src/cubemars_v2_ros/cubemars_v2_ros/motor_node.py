@@ -479,19 +479,23 @@ class MotorNode(Node):
                         dp -= self._span
                         self.temp_vel_ctrl = False  # Exit temporary velocity control
                         self._abs_diff += self._span  # Adjust absolute difference
+                        self.get_logger().info(f"Negative wraparound detected on {self.joint_name}\nSetting _abs_diff to {self._abs_diff}")
                     if dp < -0.5 * self._span:  # Wraparound in positive direction
                         dp += self._span
                         self.temp_vel_ctrl = False  # Exit temporary velocity control
                         self._abs_diff -= self._span  # Adjust absolute difference
+                        self.get_logger().info(f"Positive wraparound detected on {self.joint_name}\nSetting _abs_diff to {self._abs_diff}")
                 
                     # Update absolute position
                     self._p_abs += dp
                 
                 # Store current position and velocity for next iteration
                 self._last_p = p
+                self.get_logger().debug(f"Setting _last_p to {self._last_p}")
                 self._last_v = v  
                 if self._last_v < abs(1.0):
                     self._last_v = 1.0 if v >= 0 else -1.0  # Maintain last direction if near zero
+                self.get_logger().debug(f"Setting _last_v to {self._last_v}")
 
             error_code = String()
             error_code.data = f"Error Code {err}: {get_error_message(err)}"

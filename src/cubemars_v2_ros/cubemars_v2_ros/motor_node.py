@@ -328,6 +328,7 @@ class MotorNode(Node):
                     elif target_near_limit and current_near_limit:
                         # Temporarily switch to velocity control mode to handle the wrapping
                         self.temp_vel_ctrl = True
+                        self.get_logger().info(f"Position wrapping detected on {self.joint_name}, switching to temporary velocity control")
                         self.cmd = [0.0, self._last_v, 0.0, float(msg.data[3]), float(msg.data[4])]
                     else:
                         # Normal position control

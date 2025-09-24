@@ -320,8 +320,8 @@ class MotorNode(Node):
                     target_pos = cmd_p - self._abs_diff
                     
                     # Check if we're near the position limits (where wrapping occurs)
-                    target_near_limit = (target_pos > self.positive_wrapping_margin or 
-                                        target_pos < self.negative_wrapping_margin)
+                    target_near_limit = ((target_pos > self.positive_wrapping_margin and self._last_v > 0.0) or 
+                                        (target_pos < self.negative_wrapping_margin and self._last_v < 0.0))
                     current_near_limit = (self._last_p is not None and 
                                          (self._last_p > self.positive_wrapping_margin or 
                                           self._last_p < self.negative_wrapping_margin))

@@ -243,6 +243,7 @@ class MotorNode(Node):
         self.temp_vel_ctrl = False  # Temporary flag for velocity control during wrapping
         self.wrap_cooldown = 0      # Cooldown counter for wrapping
         self.wrap_cooldown_period = 5  # Cooldown cycles after wrapping
+        self.direction = 1.0        # Direction for temporary velocity control
 
         # Log parameters for debugging
         self.get_logger().info(
@@ -325,8 +326,8 @@ class MotorNode(Node):
                     target_near_limit = ((target_pos > self.positive_wrapping_margin and self._last_v > 0.0) or 
                                         (target_pos < self.negative_wrapping_margin and self._last_v < 0.0))
                     current_near_limit = (self._last_p is not None and 
-                                         (self._last_p > self.positive_wrapping_margin or 
-                                          self._last_p < self.negative_wrapping_margin))
+                                         ((self._last_p > self.positive_wrapping_margin and self._last_v > 0.0) or
+                                          (self._last_p < self.negative_wrapping_margin and self._last_v < 0.0)))
                     if self.wrap_cooldown > 0:
                         self.wrap_cooldown -= 1
                         target_near_limit = False  # Disable wrapping detection during cooldown
@@ -336,11 +337,11 @@ class MotorNode(Node):
                         # Temporarily switch to velocity control mode to handle the wrapping
                         self.temp_vel_ctrl = True
                         self.get_logger().info(f"Position wrapping detected on {self.joint_name}, switching to temporary velocity control")
-                        if target_pos > self.positive_wrapping_margin:
-                            direction = 1.0
                         if target_pos < self.negative_wrapping_margin:
-                            direction = -1.0
-                        self.cmd = [0.0, direction * abs(self._last_v), 0.0, float(msg.data[3]), float(msg.data[4])]
+                            self.direction = -1.0
+                        else:
+                            self.direction = 1.0
+                        self.cmd = [0.0, self.direction * abs(self._last_v), 0.0, float(msg.data[3]), float(msg.data[4])]
                     else:
                         # Normal position control
                         sent_pos = max(self.R["P_MIN"], min(self.R["P_MAX"], target_pos))

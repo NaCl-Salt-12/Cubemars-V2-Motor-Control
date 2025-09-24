@@ -239,7 +239,6 @@ class MotorNode(Node):
         # Initialize tracking variables
         self._last_p = None         # Last raw position reading
         self._last_v = 0.0 # Last velocity direction (True if positive)
-        self._p_abs = 0.0           # Unwrapped absolute position
         self._abs_diff = 0.0        # For tracking absolute position changes
         self.temp_vel_ctrl = False  # Temporary flag for velocity control during wrapping
         self.wrap_cooldown = 0  # Add this line

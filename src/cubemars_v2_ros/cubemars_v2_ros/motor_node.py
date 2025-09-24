@@ -484,13 +484,13 @@ class MotorNode(Node):
                     if dp > 0.5 * self._span:  # Wraparound in negative direction
                         dp -= self._span
                         self.temp_vel_ctrl = False  # Exit temporary velocity control
-                        self._abs_diff += self._span  # Adjust absolute difference
+                        self._abs_diff -= self._span  # Adjust absolute difference
                         self.wrap_cooldown = self.wrap_cooldown_period  # Start cooldown
                         self.get_logger().info(f"Negative wraparound detected on {self.joint_name}\nSetting _abs_diff to {self._abs_diff}")
                     if dp < -0.5 * self._span:  # Wraparound in positive direction
                         dp += self._span
                         self.temp_vel_ctrl = False  # Exit temporary velocity control
-                        self._abs_diff -= self._span  # Adjust absolute difference
+                        self._abs_diff += self._span  # Adjust absolute difference
                         self.wrap_cooldown = self.wrap_cooldown_period  # Start cooldown
                         self.get_logger().info(f"Positive wraparound detected on {self.joint_name}\nSetting _abs_diff to {self._abs_diff}")
                 

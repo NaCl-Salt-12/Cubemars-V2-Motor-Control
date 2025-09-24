@@ -331,7 +331,7 @@ class MotorNode(Node):
                         self.wrap_cooldown -= 1
                         target_near_limit = False  # Disable wrapping detection during cooldown
                     if self.temp_vel_ctrl:
-                        self.cmd = [0.0, direction * self._last_v, 0.0, float(msg.data[3]), float(msg.data[4])]
+                        self.cmd = [0.0, direction * abs(self._last_v), 0.0, float(msg.data[3]), float(msg.data[4])]
                     elif target_near_limit and current_near_limit:
                         # Temporarily switch to velocity control mode to handle the wrapping
                         self.temp_vel_ctrl = True
@@ -340,7 +340,7 @@ class MotorNode(Node):
                             direction = 1.0
                         if target_pos < self.negative_wrapping_margin:
                             direction = -1.0
-                        self.cmd = [0.0, direction * self._last_v, 0.0, float(msg.data[3]), float(msg.data[4])]
+                        self.cmd = [0.0, direction * abs(self._last_v), 0.0, float(msg.data[3]), float(msg.data[4])]
                     else:
                         # Normal position control
                         sent_pos = max(self.R["P_MIN"], min(self.R["P_MAX"], target_pos))

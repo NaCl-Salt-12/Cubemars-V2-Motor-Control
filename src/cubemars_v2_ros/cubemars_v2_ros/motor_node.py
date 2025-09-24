@@ -242,7 +242,9 @@ class MotorNode(Node):
         self._p_abs = 0.0           # Unwrapped absolute position
         self._abs_diff = 0.0        # For tracking absolute position changes
         self.temp_vel_ctrl = False  # Temporary flag for velocity control during wrapping
-        
+        self.wrap_cooldown = 0  # Add this line
+        self.wrap_cooldown_period = 5  # Cooldown cycles after wrapping
+
         # Log parameters for debugging
         self.get_logger().info(
             f"""
@@ -318,13 +320,16 @@ class MotorNode(Node):
                     cmd_p = msg.data[0]
                     # Convert commanded position to local frame by subtracting accumulated wrapping
                     target_pos = cmd_p - self._abs_diff
-                    
+
                     # Check if we're near the position limits (where wrapping occurs)
                     target_near_limit = ((target_pos > self.positive_wrapping_margin and self._last_v > 0.0) or 
                                         (target_pos < self.negative_wrapping_margin and self._last_v < 0.0))
                     current_near_limit = (self._last_p is not None and 
                                          (self._last_p > self.positive_wrapping_margin or 
                                           self._last_p < self.negative_wrapping_margin))
+                    if self.wrap_cooldown > 0:
+                        self.wrap_cooldown -= 1
+                        target_near_limit = False  # Disable wrapping detection during cooldown
                     if self.temp_vel_ctrl:
                         self.cmd = [0.0, self._last_v, 0.0, float(msg.data[3]), float(msg.data[4])]
                     elif target_near_limit and current_near_limit:
@@ -479,11 +484,13 @@ class MotorNode(Node):
                         dp -= self._span
                         self.temp_vel_ctrl = False  # Exit temporary velocity control
                         self._abs_diff += self._span  # Adjust absolute difference
+                        self.wrap_cooldown = self.wrap_cooldown_period  # Start cooldown
                         self.get_logger().info(f"Negative wraparound detected on {self.joint_name}\nSetting _abs_diff to {self._abs_diff}")
                     if dp < -0.5 * self._span:  # Wraparound in positive direction
                         dp += self._span
                         self.temp_vel_ctrl = False  # Exit temporary velocity control
                         self._abs_diff -= self._span  # Adjust absolute difference
+                        self.wrap_cooldown = self.wrap_cooldown_period  # Start cooldown
                         self.get_logger().info(f"Positive wraparound detected on {self.joint_name}\nSetting _abs_diff to {self._abs_diff}")
                 
                     # Update absolute position

@@ -318,10 +318,10 @@ class MotorNode(Node):
                 
                 if is_pos_cmd or self.temp_vel_ctrl:
                     cmd_p = msg.data[0]
-                    self.get_logger().debug(f"Raw commanded position: {cmd_p}")
+                    self.get_logger().info(f"Raw commanded position: {cmd_p}")
                     # Convert commanded position to local frame by subtracting accumulated wrapping
                     target_pos = cmd_p - self._abs_diff
-                    self.get_logger().debug(f"Adjusted target position (local frame): {target_pos}")
+                    self.get_logger().info(f"Adjusted target position (local frame): {target_pos}")
                     # Check if we're near the position limits (where wrapping occurs)
                     target_near_limit = ((target_pos > self.positive_wrapping_margin and self._last_v > 0.0) or 
                                         (target_pos < self.negative_wrapping_margin and self._last_v < 0.0))

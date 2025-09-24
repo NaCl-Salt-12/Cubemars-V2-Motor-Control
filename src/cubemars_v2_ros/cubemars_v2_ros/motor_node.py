@@ -340,7 +340,8 @@ class MotorNode(Node):
                         self.cmd = [0.0, self._last_v, 0.0, float(msg.data[3]), float(msg.data[4])]
                     else:
                         # Normal position control
-                        self.cmd = [float(target_pos), float(msg.data[1]), 
+                        sent_pos = max(self.R["P_MIN"], min(self.R["P_MAX"], target_pos))
+                        self.cmd = [float(sent_pos), float(msg.data[1]), 
                                    float(msg.data[2]), float(msg.data[3]), float(msg.data[4])]
                 else:
                     # Pure velocity or torque control

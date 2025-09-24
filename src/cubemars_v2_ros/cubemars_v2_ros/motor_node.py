@@ -125,7 +125,7 @@ def pack_mit(p, v, kp, kd, t, R):
         kd: Velocity gain
         t: Torque feedforward (Nm)
         R: Motor limits dictionary
-        
+
     Returns:
         Byte array for CAN message
     """
@@ -238,10 +238,10 @@ class MotorNode(Node):
 
         # Initialize tracking variables
         self._last_p = None         # Last raw position reading
-        self._last_v = 0.0 # Last velocity direction (True if positive)
+        self._last_v = None         # Last velocity direction (True if positive)
         self._abs_diff = 0.0        # For tracking absolute position changes
         self.temp_vel_ctrl = False  # Temporary flag for velocity control during wrapping
-        self.wrap_cooldown = 0  # Add this line
+        self.wrap_cooldown = 0      # Cooldown counter for wrapping
         self.wrap_cooldown_period = 5  # Cooldown cycles after wrapping
 
         # Log parameters for debugging

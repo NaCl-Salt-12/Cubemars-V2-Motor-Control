@@ -52,7 +52,6 @@ The node declares the following ROS 2 parameters:
 | `can_id`          | Integer| `1`           | CAN arbitration ID for the motor (11-bit standard frame, 0x000 to 0x7FF).   |
 | `motor_type`      | String | `AK70-10`     | Motor model (e.g., `AK70-10`, `AK80-64`). See supported models below.       |
 | `control_hz`      | Double | `20.0`        | Control loop frequency (Hz) for sending MIT control commands.               |
-| `poll_state`      | Boolean| `False`       | Whether to periodically poll motor state (not used; keep `False`).          |
 | `joint_name`      | String | `joint`       | Name of the motor/joint for state publishing.                              |
 | `auto_start`      | Boolean| `False`       | If `True`, sends a start command (0xFC) on node initialization.             |
 

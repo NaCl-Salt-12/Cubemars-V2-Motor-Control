@@ -212,7 +212,6 @@ class MotorNode(Node):
         self.declare_parameter('can_id', 1)                 # CAN ID for this motor
         self.declare_parameter('motor_type', 'AK70-10')     # Motor model
         self.declare_parameter('control_hz', 20.0)          # Control loop frequency
-        self.declare_parameter('poll_state', False)         # Whether to poll state periodically
         self.declare_parameter('joint_name', 'joint')       # Name for this joint/motor
         self.declare_parameter('auto_start', False)         # Whether to auto-start the motor
 

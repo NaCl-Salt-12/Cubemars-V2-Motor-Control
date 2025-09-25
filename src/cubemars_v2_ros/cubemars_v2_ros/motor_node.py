@@ -248,7 +248,6 @@ class MotorNode(Node):
 
         # ---- ROS Publishers and Subscribers ----
         # Publishers
-        self.pub_temp = self.create_publisher(Int32, f'/{self.joint_name}/temperature', 10)
         self.pub_err = self.create_publisher(String, f'/{self.joint_name}/error_code', 10)
         self.pub_state = self.create_publisher(MotorState, f'/{self.joint_name}/motor_state', 10)
         
@@ -443,7 +442,6 @@ class MotorNode(Node):
 
             # ---- Publish motor data ----
             # Publish temperature separately 
-            self.pub_temp.publish(Int32(data=int(temp)))
 
             # Publish error code with human-readable message
             error_code = String()

@@ -1,6 +1,6 @@
 # Cubemars-V2-Motor-Control (ROS 2)
 
- This package interfaces with  **CubeMars AK-series motors (V2)** using the MIT control protocol over a CAN bus. It supports various motor models with predefined limits, handles motor state feedback, and provides ROS 2 topics for publishing motor state, temperature, and error codes. The node also supports special commands for motor control (e.g., start, stop, zero, clear).
+ This package interfaces with  **CubeMars AK-series motors (V2)** using the MIT control protocol over a CAN bus. It supports various motor models with predefined limits, handles motor state feedback, and provides ROS 2 topics for publishing motor state, and error codes. The node also supports special commands for motor control (e.g., start, stop, zero, clear).
 
 ---
 
@@ -68,7 +68,8 @@ The node supports the following CubeMars motor models, with predefined limits fo
 - `AK80-64`
 - `AK80-8`
 
-Aliases (e.g., `AK70` for `AK70-10`) are supported via the `normalize_motor_type` function.
+> [!NOTE]
+> Some AK motors (ones not listed above) are not supported at this moment
 
 ## Published Topics
 
@@ -76,9 +77,8 @@ The node publishes to the following ROS 2 topics:
 
 | Topic Name       | Message Type                     | Description                                                                 |
 |------------------|----------------------------------|-----------------------------------------------------------------------------|
-| `temperature`    | `std_msgs.msg.Int32`            | Motor driver board temperature (in °C).                                     |
 | `error_code`     | `std_msgs.msg.String`           | Motor error code and human-readable error message.                         |
-| `motor_state`    | `motor_interfaces.msg.MotorState`| Motor state, including name, position, absolute position, velocity, torque, and temperature. |
+| `motor_state`    | `motor_interfaces.msg.MotorState`| Motor state, including name, position, absolute position, velocity, torque, temperature, and current. |
 
 ### MotorState Message
 
@@ -88,7 +88,11 @@ The `MotorState` message contains:
 - `abs_position` (float): Unwrapped absolute position (rad).
 - `velocity` (float): Current velocity (rad/s).
 - `torque` (float): Current torque (Nm).
+- `current` (float): Current (A).
 - `temperature` (float): Driver board temperature (°C).
+
+> [!WARNING]
+> The current implementation of `abs_position` maybe inaccurate.
 
 ## Subscribed Topics
 
@@ -97,7 +101,7 @@ The node subscribes to the following ROS 2 topics:
 | Topic Name | Message Type                     | Description                                                                 |
 |------------|----------------------------------|-----------------------------------------------------------------------------|
 | `mit_cmd`  | `std_msgs.msg.Float64MultiArray` | MIT control command: `[position, velocity, kp, kd, torque]`.                |
-| `special`  | `std_msgs.msg.String`           | Special commands: `start`, `exit`, `zero`, `clear`.                         |
+| `special_cmd`  | `std_msgs.msg.String`           | Special commands: `start`, `exit`, `zero`, `clear`.                         |
 
 ### MIT Command Format
 
@@ -112,7 +116,7 @@ Values are clamped to the motor's limits before being sent over CAN.
 
 ### Special Commands
 
-The `special` topic accepts the following commands (case-insensitive):
+The `special_cmd` topic accepts the following commands (case-insensitive):
 - `start`: Sends 0xFC to enable the motor (lazy-start on first `mit_cmd` if not already started).
 - `exit`: Sends 0xFD to disable the motor.
 - `zero`: Sends 0xFE to set the current position as zero.
@@ -138,12 +142,12 @@ The `special` topic accepts the following commands (case-insensitive):
 
 3. **Send Special Commands**:
    ```bash
-   ros2 topic pub /joint1/special std_msgs/msg/String "{data: 'start'}"
+   ros2 topic pub /joint1/special_cmd std_msgs/msg/String "{data: 'start'}"
    ```
 
 4. **Monitor State**:
    ```bash
    ros2 topic echo /joint1/motor_state
-   ros2 topic echo /joint1/temperature
    ros2 topic echo /joint1/error_code
+   ```
    ```

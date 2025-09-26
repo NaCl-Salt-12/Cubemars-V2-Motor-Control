@@ -216,6 +216,7 @@ class MotorNode(Node):
         self.declare_parameter('control_hz', 20.0)          # Control loop frequency
         self.declare_parameter('joint_name', 'joint')       # Name for this joint/motor
         self.declare_parameter('auto_start', False)         # Whether to auto-start the motor
+        self.declare_parameter('reverse_polarity', False)  # Reverse motor direction
 
         # Get parameters
         self.iface = self.get_parameter('can_interface').value
@@ -226,6 +227,7 @@ class MotorNode(Node):
         self.control_dt = 1.0 / float(self.get_parameter('control_hz').value)  # Control period
         self.auto_start = bool(self.get_parameter('auto_start').value)
         self.control_hz = self.get_parameter('control_hz').value
+        self.reverse_polarity = bool(self.get_parameter('reverse_polarity').value)
 
         # Log parameters for debugging
         self.get_logger().info(
@@ -235,6 +237,7 @@ class MotorNode(Node):
             Motor type: {self.motor_type}
             Control Hz: {self.control_hz}
             Auto Start: {self.auto_start}
+            Reverse Polarity: {self.reverse_polarity}
             """
         )
 
@@ -354,6 +357,12 @@ class MotorNode(Node):
             # If in neutral hold mode, send zeros; otherwise send cached command
             p, v, kp, kd, t = ([0.0] * 5) if self._neutral_hold else self.cmd
         
+        # Apply reverse polarity if configured
+        if self.reverse_polarity:
+            p = -p  # Invert position
+            v = -v  # Invert velocity
+            t = -t  # Invert torque
+        
         # Pack the command into CAN message format
         data = pack_mit(p, v, kp, kd, t, self.R)
         
@@ -390,6 +399,12 @@ class MotorNode(Node):
             kd: Velocity gain
             t: Torque feedforward (Nm)
         """
+        # Apply reverse polarity if configured
+        if self.reverse_polarity:
+            p = -p  # Invert position
+            v = -v  # Invert velocity
+            t = -t  # Invert torque
+            
         d = pack_mit(p, v, kp, kd, t, self.R)
         
         try: 
@@ -419,6 +434,12 @@ class MotorNode(Node):
             # Verify the driver ID matches our expected ID (low byte of arbitration ID)
             if drv != (self.arb & 0xFF):
                 continue
+
+            # Apply reverse polarity to received values if configured
+            if self.reverse_polarity:
+                p = -p     # Invert position
+                v = -v     # Invert velocity
+                tau = -tau # Invert torque
 
             # ---- Process position data for unwrapping ----
             # Handle position unwrapping to track continuous rotation beyond ±12.5 rad

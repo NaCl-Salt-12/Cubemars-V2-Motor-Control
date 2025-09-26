@@ -4,6 +4,24 @@
 
 ---
 
+## Updates
+
+### Latest Changes
+- **Reverse Polarity Support**: Added `reverse_polarity` parameter to invert motor direction without changing control logic
+- **Improved Torque Handling**: Added motor-specific torque constants for accurate torque scaling from current measurements
+- **Enhanced State Publishing**: Motor state now includes both raw current (A) and scaled torque (Nm) values
+- **Better Error Reporting**: Expanded error code mapping with human-readable descriptions
+- **Code Documentation**: Comprehensive inline documentation and improved code structure
+- **Motor Shutoff**: The motor now exits MIT mode/turns off when a keyboard interupt is sent 
+
+### Recent Improvements
+- Fixed torque scaling using effective torque constants for each motor model
+- Improved absolute position tracking with wraparound handling
+- Enhanced thread safety for command handling
+- Better CAN message validation and error handling
+
+---
+
 ## Requirements
 
 - ROS 2 (Humble or Jazzy) and `colcon`
@@ -54,6 +72,7 @@ The node declares the following ROS 2 parameters:
 | `control_hz`      | Double | `20.0`        | Control loop frequency (Hz) for sending MIT control commands.               |
 | `joint_name`      | String | `joint`       | Name of the motor/joint for state publishing.                              |
 | `auto_start`      | Boolean| `False`       | If `True`, sends a start command (0xFC) on node initialization.             |
+| `reverse_polarity`| Boolean| `False`       | If `True`, reverses the motor direction (inverts position, velocity, torque).|
 
 ### Supported Motor Types
 
@@ -86,12 +105,15 @@ The `MotorState` message contains:
 - `position` (float): Current position (rad, wrapped within ±12.5 rad).
 - `abs_position` (float): Unwrapped absolute position (rad).
 - `velocity` (float): Current velocity (rad/s).
-- `torque` (float): Current torque (Nm).
-- `current` (float): Current (A).
+- `torque` (float): Current torque (Nm), scaled using motor-specific torque constants.
+- `current` (float): Current (A), raw value from motor feedback.
 - `temperature` (float): Driver board temperature (°C).
 
 > [!WARNING]
 > The current implementation of `abs_position` maybe inaccurate.
+
+> [!NOTE]
+> The `torque` field is scaled using effective torque constants specific to each motor model, while `current` provides the raw current measurement. The torque constants are: AK10-9 (1.44 Nm/A), AK60-6 (0.81 Nm/A), AK70-10 (1.23 Nm/A), AK80-6 (0.63 Nm/A), AK80-9 (0.945 Nm/A), AK80-64 (8.704 Nm/A).
 
 ## Subscribed Topics
 
@@ -131,7 +153,8 @@ The `special_cmd` topic accepts the following commands (case-insensitive):
      -p motor_type:=AK70-10 \
      -p control_hz:=20.0 \
      -p joint_name:=joint1 \
-     -p auto_start:=false
+     -p auto_start:=false \
+     -p reverse_polarity:=false
    ```
 
 2. **Send MIT Commands**:
@@ -148,5 +171,4 @@ The `special_cmd` topic accepts the following commands (case-insensitive):
    ```bash
    ros2 topic echo /joint1/motor_state
    ros2 topic echo /joint1/error_code
-   ```
    ```

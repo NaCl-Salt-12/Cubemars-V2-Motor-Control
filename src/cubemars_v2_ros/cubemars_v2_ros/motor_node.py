@@ -15,6 +15,8 @@ from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, String, Int32 
 from motor_interfaces.msg import MotorState
 
+# TODO: Add additional motors and their specifications
+
 # ===================== MOTOR SPECIFICATIONS AND CONSTANTS =====================
 
 # Motor limits for different actuator models (from CubeMars documentation)
@@ -299,10 +301,10 @@ class MotorNode(Node):
             self._neutral_hold = False  # New command cancels any previous "clear" hold
         
         # Auto-start the motor on first command if not already started
-        if not self._started:
-            self._send_special(0xFC)  # START command
-            self._started = True
-            self.get_logger().info(f"Auto-starting motor {self.joint_name} on first command")
+        # if not self._started:
+        #     self._send_special(0xFC)  # START command
+        #     self._started = True
+        #     self.get_logger().info(f"Auto-starting motor {self.joint_name} on first command")
 
     def on_special(self, msg):
         """
@@ -460,6 +462,7 @@ class MotorNode(Node):
 
     def destroy_node(self):
         """Clean up resources when the node is shutting down"""
+        self._send_special(0xFD)  # EXIT command (0xFD)
         self._stop = True  # Signal RX thread to stop
         
         try: 

@@ -8,17 +8,14 @@
 
 ### Latest Changes
 - **Reverse Polarity Support**: Added `reverse_polarity` parameter to invert motor direction without changing control logic
-- **Improved Torque Handling**: Added motor-specific torque constants for accurate torque scaling from current measurements
-- **Enhanced State Publishing**: Motor state now includes both raw current (A) and scaled torque (Nm) values
-- **Better Error Reporting**: Expanded error code mapping with human-readable descriptions
-- **Code Documentation**: Comprehensive inline documentation and improved code structure
 - **Motor Shutoff**: The motor now exits MIT mode/turns off when a keyboard interupt is sent 
 
 ### Recent Improvements
 - Fixed torque scaling using effective torque constants for each motor model
-- Improved absolute position tracking with wraparound handling
-- Enhanced thread safety for command handling
-- Better CAN message validation and error handling
+- Removed unused parameters 
+- Improved Documentation 
+- Better Error reporting
+- Motor State now returns both raw current and scaled torque values 
 
 ---
 
@@ -113,7 +110,7 @@ The `MotorState` message contains:
 > The current implementation of `abs_position` maybe inaccurate.
 
 > [!NOTE]
-> The `torque` field is scaled using effective torque constants specific to each motor model, while `current` provides the raw current measurement. The torque constants are: AK10-9 (1.44 Nm/A), AK60-6 (0.81 Nm/A), AK70-10 (1.23 Nm/A), AK80-6 (0.63 Nm/A), AK80-9 (0.945 Nm/A), AK80-64 (8.704 Nm/A).
+> The `torque` field is scaled using effective torque constants specific to each motor model, while `current` provides the raw current measurement.
 
 ## Subscribed Topics
 

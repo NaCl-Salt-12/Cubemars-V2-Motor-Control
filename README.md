@@ -19,6 +19,24 @@
 
 ---
 
+## Roadmap
+
+### Planned Features
+- **Safety Features**: Torque/velocity limits, emergency stop functionality, and watchdog timers
+- **Diagnostics**: Enhanced health monitoring, motor diagnostics publisher, and fault recovery
+- **Additional Protocols**: Support for other Cubemars communication protocols beyond MIT
+
+### Improvements in Progress
+- **Absolute Position Accuracy**: Improved unwrapping algorithm and encoder calibration routines
+- **Additional Motor Support**: Add support for currently unsuporrted AK series motors
+
+### Known Issues
+- `abs_position` tracking may drift over long periods of continuous operation
+- CAN bus error handling could be more robust for network interruptions
+- Thread synchronization could be optimized for higher frequency control
+- Not all Ak series motors supported
+
+
 ## Requirements
 
 - ROS 2 (Humble or Jazzy) and `colcon`

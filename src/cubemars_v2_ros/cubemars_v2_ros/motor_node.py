@@ -222,6 +222,9 @@ class MotorNode(Node):
         self.iface = self.get_parameter('can_interface').value
         self.can_id = int(self.get_parameter('can_id').value)
         self.motor_type = self.get_parameter('motor_type').value
+        if self.motor_type not in LIMITS:
+            self.get_logger().error(f"Unsupported motor type: {self.motor_type}. Supported types: {list(LIMITS.keys())}")
+            raise ValueError(f"Unsupported motor type: {self.motor_type}")
         self.R = LIMITS[self.motor_type]  # Get motor limits for this type
         self.joint_name = self.get_parameter('joint_name').value
         self.control_dt = 1.0 / float(self.get_parameter('control_hz').value)  # Control period
@@ -240,12 +243,16 @@ class MotorNode(Node):
             Reverse Polarity: {self.reverse_polarity}
             """
         )
-
-        # ---- CAN Bus Setup ----
-        self.arb = self.can_id & 0x7FF  # CAN arbitration ID (standard 11-bit frame)
-        self.bus = can.interface.Bus(bustype="socketcan", channel=self.iface)
-        try: 
-            # Filter to only receive messages with our CAN ID
+        try:
+            self.bus = can.interface.Bus(bustype="socketcan", channel=self.iface)
+            try: 
+                # Filter to only receive messages with our CAN ID
+                self.bus.set_filters([{"can_id": self.arb, "can_mask": 0x7FF}])
+            except Exception: 
+                pass  # Some interfaces don't support filtering
+        except Exception as e:
+            self.get_logger().error(f"Failed to initialize CAN bus on interface '{self.iface}': {e}")
+            raise
             self.bus.set_filters([{"can_id": self.arb, "can_mask": 0x7FF}])
         except Exception: 
             pass  # Some interfaces don't support filtering
@@ -492,7 +499,8 @@ class MotorNode(Node):
             pass
         
         try: 
-            self.bus.shutdown()  # Close CAN bus connection
+            if hasattr(self.bus, "shutdown"):
+                self.bus.shutdown()  # Close CAN bus connection
         except: 
             pass
         

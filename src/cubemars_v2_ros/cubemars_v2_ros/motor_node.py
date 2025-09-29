@@ -57,29 +57,6 @@ MOTOR_ERROR_CODES = {
 
 # ===================== UTILITY FUNCTIONS =====================
 
-def normalize_motor_type(name: str) -> str:
-    """
-    Normalize motor type names for consistency and handle aliases.
-    
-    Args:
-        name: Raw motor type name (may contain underscores, mixed case)
-        
-    Returns:
-        Standardized motor type name
-    """
-    s = str(name).strip().upper().replace('_', '-')
-    # Simple aliases for common motor names
-    aliases = {
-        "AK10": "AK10-9",
-        "AK60": "AK60-6",
-        "AK70": "AK70-10",
-        "AK806": "AK80-6",
-        "AK809": "AK80-9",
-        "AK8064": "AK80-64",
-        "AK808": "AK80-8",
-    }
-    return aliases.get(s, s)
-
 def clamp(x, lo, hi):
     """Clamp a value between lower and upper bounds"""
     return lo if x < lo else hi if x > hi else x

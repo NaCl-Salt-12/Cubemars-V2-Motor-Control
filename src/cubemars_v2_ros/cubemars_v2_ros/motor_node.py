@@ -220,6 +220,8 @@ class MotorNode(Node):
             Reverse Polarity: {self.reverse_polarity}
             """
         )
+
+        self.arb = self.can_id & 0x7FF  # CAN arbitration ID (standard 11-bit frame)
         try:
             self.bus = can.interface.Bus(bustype="socketcan", channel=self.iface)
             try: 

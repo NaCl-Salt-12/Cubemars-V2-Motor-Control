@@ -21,7 +21,7 @@ setup(
         "console_scripts": [
             # existing nodes
             "motor_node = cubemars_v2_ros.motor_node:main",
-            "record_node = cubemars_v2_ros.record_node:main",
+            "record_motor = cubemars_v2_ros.record_motor:main",
         ],
     },
 )

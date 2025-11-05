@@ -18,11 +18,11 @@ class RecordMotor(Node):
         self.declare_parameter("save_to", "./")
 
         self.motor_name = (
-            self.get_parameter("motor_name").get_parameter_value().string_value
+            self.get_parameter("motor_name").value
         )
-        self.save_to = self.get_parameter("save_to").get_parameter_value().string_value
+        self.save_to = self.get_parameter("save_to").get_parameter_value().value
         self.experiment_name = (
-            self.get_parameter("experiment_name").get_parameter_value().string_value
+            self.get_parameter("experiment_name").value
         )
 
         parent_folder = Path(self.save_to)

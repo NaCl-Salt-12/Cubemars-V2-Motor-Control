@@ -50,7 +50,7 @@ class RecordMotor(Node):
             "timestamp", "name", "position", "abs_position", "velocity", "torque", "current", "temperature"
         ])
         # Get start time
-        self.start_time = self.get_clock().now().nanoseconds
+        self.start_time = self.get_clock().now().seconds
         # Create subscribers
         self.state_sub = self.create_subscription(
             MotorState, f"/{self.motor_name}/motor_state", self.state_callback, 10
@@ -66,8 +66,8 @@ class RecordMotor(Node):
 
     def _get_elapsed_ms(self):
         """Return elapsed time since node start in milliseconds."""
-        now_ns = self.get_clock().now().nanoseconds
-        return (now_ns - self.start_time) / 1e6  # convert ns → ms
+        now_ns = self.get_clock().now().seconds
+        return (now_ns - self.start_time)  # convert ns → ms
         
     def mit_callback(self, msg):
         timestamp = self._get_elapsed_ms()

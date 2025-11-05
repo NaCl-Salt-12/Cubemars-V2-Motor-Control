@@ -66,7 +66,7 @@ class RecordMotor(Node):
         )
 
         self.state_sub = self.create_subscription(
-            MotorState, "/self.motor_name/motor_state", self.state_callback, 10
+            MotorState, f"/{self.motor_name}/motor_state", self.state_callback, 10
         )
 
         self.error_sub = self.create_subscription(

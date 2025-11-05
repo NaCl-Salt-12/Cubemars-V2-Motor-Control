@@ -74,7 +74,7 @@ class RecordMotor(Node):
         )
 
         self.mit_sub = self.create_subscription(
-            Float64MultiArray, "/{self.motor_name}/mit_cmd", self.mit_callback, 10
+            Float64MultiArray, f"/{self.motor_name}/mit_cmd", self.mit_callback, 10
         )
 
     def mit_callback(self, msg):

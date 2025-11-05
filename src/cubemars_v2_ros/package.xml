@@ -15,8 +15,6 @@
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <depend>motor_interfaces</depend>
-  <depend>csv</depend>
-  <depend>pathlib</depend>
 
   <exec_depend>sensor_msgs</exec_depend>
 

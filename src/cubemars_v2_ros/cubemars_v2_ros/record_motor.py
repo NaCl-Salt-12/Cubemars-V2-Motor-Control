@@ -49,7 +49,8 @@ class RecordMotor(Node):
         self.state_writer.writerow([
             "timestamp", "name", "position", "abs_position", "velocity", "torque", "current", "temperature"
         ])
-
+        # Get start time
+        self.start_time = self.get_clock().now().nanoseconds
         # Create subscribers
         self.state_sub = self.create_subscription(
             MotorState, f"/{self.motor_name}/motor_state", self.state_callback, 10
@@ -63,18 +64,23 @@ class RecordMotor(Node):
 
         self.get_logger().info(f"Recording motor data for '{self.motor_name}' in {save_folder}")
 
+    def _get_elapsed_ms(self):
+        """Return elapsed time since node start in milliseconds."""
+        now_ns = self.get_clock().now().nanoseconds
+        return (now_ns - self.start_time) / 1e6  # convert ns → ms
+        
     def mit_callback(self, msg):
-        timestamp = self.get_clock().now().nanoseconds / 1e9
+        timestamp = self._get_elapsed_ms()
         self.mit_writer.writerow([timestamp] + list(msg.data))
         self.mit_file.flush()
 
     def error_callback(self, msg):
-        timestamp = self.get_clock().now().nanoseconds / 1e9
+        timestamp = self._get_elapsed_ms()
         self.error_writer.writerow([timestamp, msg.data])
         self.error_file.flush()
 
     def state_callback(self, msg):
-        timestamp = self.get_clock().now().nanoseconds / 1e9
+        timestamp = self._get_elapsed_ms()
         self.state_writer.writerow([
             timestamp,
             msg.name,

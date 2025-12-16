@@ -108,6 +108,18 @@ LIMITS = {
         KD_MIN=0.0,
         KD_MAX=5.0,
     ),
+    "AK40-10": dict(
+        P_MIN=-12.5,
+        P_MAX=12.5,
+        V_MIN=-45.5,
+        V_MAX=45.5,
+        T_MIN=-5.0,
+        T_MAX=5.0,
+        KP_MIN=0.0,
+        KP_MAX=500.0,
+        KD_MIN=0.0,
+        KD_MAX=5.0,
+    ),
 }
 
 # Torque constants (Nm/A) for converting between current and torque
@@ -115,6 +127,7 @@ TORQUE_CONSTANTS = {
     "AK10-9": 0.198,  # Nm/A
     "AK70-10": 0.123,  # Nm/A
     "AK80-64": 0.136,  # Nm/A
+    "AK40-10": 0.056,
 }
 
 # Motor error code mapping for human-readable messages

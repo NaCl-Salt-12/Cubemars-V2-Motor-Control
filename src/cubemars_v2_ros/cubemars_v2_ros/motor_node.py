@@ -25,8 +25,8 @@ from motor_interfaces.msg import MotorState
 LIMITS = {
     # Position is ±12.5 rad for all models; Kp=[0,500], Kd=[0,5]
     "AK10-9": dict(
-        P_MIN=-12.5,
-        P_MAX=12.5,
+        P_MIN=-6.3,
+        P_MAX=6.3,
         V_MIN=-50.0,
         V_MAX=50.0,
         T_MIN=-65.0,
@@ -34,7 +34,7 @@ LIMITS = {
         KP_MIN=0.0,
         KP_MAX=500.0,
         KD_MIN=0.0,
-        KD_MAX=5.0,
+        KD_MAX=50.0,
     ),
     "AK60-6": dict(
         P_MIN=-12.5,
@@ -46,7 +46,7 @@ LIMITS = {
         KP_MIN=0.0,
         KP_MAX=500.0,
         KD_MIN=0.0,
-        KD_MAX=5.0,
+        KD_MAX=50.0,
     ),
     "AK70-10": dict(
         P_MIN=-12.5,
@@ -58,7 +58,7 @@ LIMITS = {
         KP_MIN=0.0,
         KP_MAX=500.0,
         KD_MIN=0.0,
-        KD_MAX=5.0,
+        KD_MAX=50.0,
     ),
     "AK80-6": dict(
         P_MIN=-12.5,
@@ -70,7 +70,7 @@ LIMITS = {
         KP_MIN=0.0,
         KP_MAX=500.0,
         KD_MIN=0.0,
-        KD_MAX=5.0,
+        KD_MAX=50.0,
     ),
     "AK80-9": dict(
         P_MIN=-12.5,
@@ -82,7 +82,7 @@ LIMITS = {
         KP_MIN=0.0,
         KP_MAX=500.0,
         KD_MIN=0.0,
-        KD_MAX=5.0,
+        KD_MAX=50.0,
     ),
     "AK80-64": dict(
         P_MIN=-12.5,
@@ -94,7 +94,7 @@ LIMITS = {
         KP_MIN=0.0,
         KP_MAX=500.0,
         KD_MIN=0.0,
-        KD_MAX=5.0,
+        KD_MAX=50.0,
     ),
     "AK80-8": dict(
         P_MIN=-12.5,
@@ -106,7 +106,7 @@ LIMITS = {
         KP_MIN=0.0,
         KP_MAX=500.0,
         KD_MIN=0.0,
-        KD_MAX=5.0,
+        KD_MAX=50.0,
     ),
     "AK40-10": dict(
         P_MIN=-12.5,
@@ -118,7 +118,7 @@ LIMITS = {
         KP_MIN=0.0,
         KP_MAX=500.0,
         KD_MIN=0.0,
-        KD_MAX=5.0,
+        KD_MAX=50.0,
     ),
 }
 
@@ -184,52 +184,57 @@ def u2f(u, lo, hi, bits):
     return lo + (u / ((1 << bits) - 1)) * (hi - lo)
 
 
-def pack_mit(p, v, kp, kd, t, R):
+def pack_mit(pos_inc, pos, vel, kp, kd, t, R):
     """
-    Pack MIT control message parameters into CAN frame data bytes.
-
-    Args:
-        p: Position setpoint (rad)
-        v: Velocity setpoint (rad/s)
-        kp: Position gain
-        kd: Velocity gain
-        t: Torque feedforward (Nm)
-        R: Motor limits dictionary
-
-    Returns:
-        Byte array for CAN message
+    Pack MIT control message parameters into CAN frame data bytes based
+    on the provided bit-mapping definition.
     """
-    # Convert float values to integers with appropriate bit width
-    p_i = f2u(p, R["P_MIN"], R["P_MAX"], 16)  # 16 bits for position
-    v_i = f2u(v, R["V_MIN"], R["V_MAX"], 12)  # 12 bits for velocity
-    kp_i = f2u(kp, R["KP_MIN"], R["KP_MAX"], 12)  # 12 bits for position gain
-    kd_i = f2u(kd, R["KD_MIN"], R["KD_MAX"], 12)  # 12 bits for velocity gain
-    t_i = f2u(t, R["T_MIN"], R["T_MAX"], 12)  # 12 bits for torque
+    # 1. Scale values to integers based on the bit-widths in the spec
+    # Position: 15 bits, Velocity: 12 bits, KP: 12 bits, KD: 12 bits, Current(t): 12 bits
+    p_i = f2u(pos, R["P_MIN"], R["P_MAX"], 15)
+    v_i = f2u(vel, R["V_MIN"], R["V_MAX"], 12)
+    kp_i = f2u(kp, R["KP_MIN"], R["KP_MAX"], 12)
+    kd_i = f2u(kd, R["KD_MIN"], R["KD_MAX"], 12)
+    t_i = f2u(t, R["T_MIN"], R["T_MAX"], 12)
 
-    # Pack values into 8 bytes following MIT protocol format
-    return bytes(
-        [
-            (p_i >> 8) & 0xFF,  # Position (high byte)
-            p_i & 0xFF,  # Position (low byte)
-            (v_i >> 4) & 0xFF,  # Velocity (high byte)
-            ((v_i & 0x0F) << 4)
-            | ((kp_i >> 8) & 0x0F),  # Velocity (low nibble) + Kp (high nibble)
-            kp_i & 0xFF,  # Kp (low byte)
-            (kd_i >> 4) & 0xFF,  # Kd (high byte)
-            ((kd_i & 0x0F) << 4)
-            | ((t_i >> 8) & 0x0F),  # Kd (low nibble) + Torque (high nibble)
-            t_i & 0xFF,  # Torque (low byte)
-        ]
-    )
+    # 2. Pack bytes following the specific bit-mapping table provided
+    data = [0] * 8
+
+    # DATA[0]: Pos Inc (Bit 7) | Position High 7 bits (Bits 6-0)
+    data[0] = ((pos_inc & 0x01) << 7) | ((p_i >> 8) & 0x7F)
+
+    # DATA[1]: Position Low 8 bits
+    data[1] = p_i & 0xFF
+
+    # DATA[2]: Motor Speed High 8 bits
+    data[2] = (v_i >> 4) & 0xFF
+
+    # DATA[3]: Motor Speed Low 4 bits (7-4) | KP High 4 bits (3-0)
+    data[3] = ((v_i & 0x0F) << 4) | ((kp_i >> 8) & 0x0F)
+
+    # DATA[4]: KP Low 8 bits
+    data[4] = kp_i & 0xFF
+
+    # DATA[5]: KD High 8 bits (Note: Specification split KD across 5 and 6)
+    data[5] = (kd_i >> 4) & 0xFF
+
+    # DATA[6]: KD Low 4 bits (7-4) | Current (t) High 4 bits (3-0)
+    data[6] = ((kd_i & 0x0F) << 4) | ((t_i >> 8) & 0x0F)
+
+    # DATA[7]: Current (t) Low 8 bits
+    data[7] = t_i & 0xFF
+
+    return bytes(data)
 
 
 def parse_reply(b, R):
     """
-    Parse the CAN reply from the motor controller.
+    Parse the CAN reply from the motor controller based on the
+    Remote Control Mode Drive Board Transmit Data Definition.
 
     Args:
-        b: Byte array from CAN message
-        R: Motor limits dictionary
+        b: Byte array from CAN message (8 bytes)
+        R: Motor limits dictionary containing P_MIN/MAX, V_MIN/MAX, T_MIN/MAX
 
     Returns:
         Tuple of (driver_id, position, velocity, torque, temperature, error_code)
@@ -238,17 +243,30 @@ def parse_reply(b, R):
     if len(b) != 8:
         return None
 
-    drv = b[0]  # Driver ID (motor controller ID)
-    p_int = (b[1] << 8) | b[2]  # Position (16 bits)
-    v_int = (b[3] << 4) | (b[4] >> 4)  # Velocity (12 bits)
-    i_int = ((b[4] & 0x0F) << 8) | b[5]  # Current/Torque (12 bits)
-    temp = b[6]  # Temperature (8 bits)
-    err = b[7]  # Error code (8 bits)
+    # DATA[0]: Driver ID
+    drv = b[0]
 
-    # Convert integer values back to physical units
-    p = u2f(p_int, R["P_MIN"], R["P_MAX"], 16)  # rad
-    v = u2f(v_int, R["V_MIN"], R["V_MAX"], 12)  # rad/s
-    tau = u2f(i_int, R["T_MIN"], R["T_MAX"], 12)  # Nm
+    # DATA[1]-DATA[2]: Motor Position (16 bits)
+    p_int = (b[1] << 8) | b[2]
+
+    # DATA[3]-DATA[4](bits 7-4): Motor Speed (12 bits)
+    # Shift DATA[3] left by 4 to make room for the top half of DATA[4]
+    v_int = (b[3] << 4) | (b[4] >> 4)
+
+    # DATA[4](bits 3-0)-DATA[5]: Current Value (12 bits)
+    # Mask DATA[4] to get lower 4 bits, shift left, then OR with DATA[5]
+    i_int = ((b[4] & 0x0F) << 8) | b[5]
+
+    # DATA[6]: Motor Temperature (8 bits)
+    temp = b[6]
+
+    # DATA[7]: Motor Error Flag (8 bits)
+    err = b[7]
+
+    # Convert integer values back to physical units using the u2f helper
+    p = u2f(p_int, R["P_MIN"], R["P_MAX"], 16)  # Position in rad
+    v = u2f(v_int, R["V_MIN"], R["V_MAX"], 12)  # Velocity in rad/s
+    tau = u2f(i_int, R["T_MIN"], R["T_MAX"], 12)  # Torque in Nm
 
     return drv, p, v, tau, temp, err
 
@@ -335,10 +353,6 @@ class MotorNode(Node):
             self.get_logger().error(
                 f"Failed to initialize CAN bus on interface '{self.iface}': {e}"
             )
-            raise
-            self.bus.set_filters([{"can_id": self.arb, "can_mask": 0x7FF}])
-        except Exception:
-            pass  # Some interfaces don't support filtering
 
         # ---- ROS Publishers and Subscribers ----
         # Publishers
@@ -371,10 +385,11 @@ class MotorNode(Node):
         self._last_p = None  # Last raw position reading
         self._p_abs = 0.0  # Unwrapped absolute position
         self._span = self.R["P_MAX"] - self.R["P_MIN"]  # Position range
+        self.cmd_pos = 0.0
 
         # ---- Timers ----
         # Control timer sends commands at the specified frequency
-        self.create_timer(self.control_dt, self._tick_control)
+        # self.create_timer(self.control_dt, self._tick_control)
 
         # ---- CAN Receiver Thread ----
         self._stop = False  # Flag to stop the RX thread
@@ -401,15 +416,30 @@ class MotorNode(Node):
             )
             return
 
-        with self._lock:
-            self.cmd = list(map(float, msg.data))
-            self._neutral_hold = False  # New command cancels any previous "clear" hold
+        self.cmd = list(map(float, msg.data))
+        self._cmd_pos += self.cmd[0]
 
-        # Auto-start the motor on first command if not already started
-        # if not self._started:
-        #     self._send_special(0xFC)  # START command
-        #     self._started = True
-        #     self.get_logger().info(f"Auto-starting motor {self.joint_name} on first command")
+        p, v, kp, kd, t = self.cmd
+
+        # Apply reverse polarity if configured
+        if self.reverse_polarity:
+            p = -p  # Invert position
+            v = -v  # Invert velocity
+            t = -t  # Invert torque
+
+        pos_inc = 1
+        # Pack the command into CAN message format
+        data = pack_mit(pos_inc, p, v, kp, kd, t, self.R)
+
+        try:
+            # Send the command over CAN
+            self.bus.send(
+                can.Message(arbitration_id=self.arb, data=data, is_extended_id=False)
+            )
+        except can.CanError:
+            self.get_logger().error(
+                f"Failed to send CAN message to motor {self.joint_name}"
+            )
 
     def on_special(self, msg):
         """
@@ -455,31 +485,32 @@ class MotorNode(Node):
             )
 
     # ---- Control Loop ----
-    def _tick_control(self):
-        """Periodic control loop that sends commands to the motor"""
-        with self._lock:
-            # If in neutral hold mode, send zeros; otherwise send cached command
-            p, v, kp, kd, t = ([0.0] * 5) if self._neutral_hold else self.cmd
-
-        # Apply reverse polarity if configured
-        if self.reverse_polarity:
-            p = -p  # Invert position
-            v = -v  # Invert velocity
-            t = -t  # Invert torque
-
-        # Pack the command into CAN message format
-        data = pack_mit(p, v, kp, kd, t, self.R)
-
-        try:
-            # Send the command over CAN
-            self.bus.send(
-                can.Message(arbitration_id=self.arb, data=data, is_extended_id=False)
-            )
-        except can.CanError:
-            self.get_logger().error(
-                f"Failed to send CAN message to motor {self.joint_name}"
-            )
-
+    # def _tick_control(self):
+    #     """Periodic control loop that sends commands to the motor"""
+    #     with self._lock:
+    #         # If in neutral hold mode, send zeros; otherwise send cached command
+    #         p, v, kp, kd, t = ([0.0] * 5) if self._neutral_hold else self.cmd
+    #
+    #     # Apply reverse polarity if configured
+    #     if self.reverse_polarity:
+    #         p = -p  # Invert position
+    #         v = -v  # Invert velocity
+    #         t = -t  # Invert torque
+    #
+    #     pos_inc = 1
+    #     # Pack the command into CAN message format
+    #     data = pack_mit(pos_inc, p, v, kp, kd, t, self.R)
+    #
+    #     try:
+    #         # Send the command over CAN
+    #         self.bus.send(
+    #             can.Message(arbitration_id=self.arb, data=data, is_extended_id=False)
+    #         )
+    #     except can.CanError:
+    #         self.get_logger().error(
+    #             f"Failed to send CAN message to motor {self.joint_name}"
+    #         )
+    #
     # ---- Helper Methods ----
     def _send_special(self, code):
         """
@@ -511,13 +542,15 @@ class MotorNode(Node):
             kd: Velocity gain
             t: Torque feedforward (Nm)
         """
+        pos_inc = 1
+
         # Apply reverse polarity if configured
         if self.reverse_polarity:
             p = -p  # Invert position
             v = -v  # Invert velocity
             t = -t  # Invert torque
 
-        d = pack_mit(p, v, kp, kd, t, self.R)
+        d = pack_mit(pos_inc, p, v, kp, kd, t, self.R)
 
         try:
             self.bus.send(
@@ -562,6 +595,7 @@ class MotorNode(Node):
             if self._last_p is None:
                 # First reading - initialize absolute position
                 self._p_abs = p
+                self.cmd_pos = p
             else:
                 # Calculate position change, handling wraparound
                 dp = p - self._last_p

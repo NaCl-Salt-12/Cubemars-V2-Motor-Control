@@ -542,7 +542,11 @@ class MotorNode(Node):
             kd: Velocity gain
             t: Torque feedforward (Nm)
         """
-        pos_inc = 1
+
+        if p == 0:
+            pos_inc = 0
+        else:
+            pos_inc = 1
 
         # Apply reverse polarity if configured
         if self.reverse_polarity:

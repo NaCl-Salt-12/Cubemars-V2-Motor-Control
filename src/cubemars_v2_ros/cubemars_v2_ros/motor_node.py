@@ -427,7 +427,10 @@ class MotorNode(Node):
             v = -v  # Invert velocity
             t = -t  # Invert torque
 
-        pos_inc = 1
+        if p = 0:
+            pos_inc = 0
+        else:
+            pos_inc = 1
         # Pack the command into CAN message format
         data = pack_mit(pos_inc, p, v, kp, kd, t, self.R)
 

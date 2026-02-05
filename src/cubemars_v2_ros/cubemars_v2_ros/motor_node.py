@@ -25,8 +25,8 @@ from motor_interfaces.msg import MotorState
 LIMITS = {
     # Position is ±12.5 rad for all models; Kp=[0,500], Kd=[0,5]
     "AK10-9": dict(
-        P_MIN=-6.3,
-        P_MAX=6.3,
+        P_MIN=-3.14,
+        P_MAX=3.14,
         V_MIN=-50.0,
         V_MAX=50.0,
         T_MIN=-65.0,
@@ -417,7 +417,7 @@ class MotorNode(Node):
             return
 
         self.cmd = list(map(float, msg.data))
-        self._cmd_pos += self.cmd[0]
+        self.cmd_pos += self.cmd[0]
 
         p, v, kp, kd, t = self.cmd
 

@@ -427,8 +427,8 @@ class MotorNode(Node):
             v = -v  # Invert velocity
             t = -t  # Invert torque
 
-        # If position == 0, set pos_inc = 0 to avoid rounding errors
-        if p == 0:
+        # If position == 0, set pos_inc = 0 to avoid position drift
+        if abs(p) < 1e-6:
             pos_inc = 0
         else:
             pos_inc = 1
